@@ -7,6 +7,7 @@
 
 class QNetworkReply;
 
+namespace client {
 class HttpClient : public QObject {
     Q_OBJECT
     
@@ -46,3 +47,4 @@ private:
 
     QUrl buildUrl(const QString& path) const;
 };
+}

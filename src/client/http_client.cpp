@@ -1,4 +1,4 @@
-#include "http_client.h"
+#include "client/http_client.h"
 
 #include <QNetworkRequest>
 #include <QNetworkReply>
@@ -6,6 +6,7 @@
 #include <QJsonParseError>
 #include <QDebug>
 
+namespace client{
 HttpClient::HttpClient(QObject* parent)
     : QObject(parent)
 {
@@ -124,4 +125,5 @@ void HttpClient::onReplyFinished()
 
     // 当前策略：只要网络 OK 且 JSON OK，就给 success，由业务判断 httpStatus
     emit requestSucceeded(info.requestId, httpStatus, obj);
+}
 }
