@@ -20,7 +20,7 @@ build:
     ninja -C {{BUILD_DIR}}
 
 run:
-    cd {{BUILD_DIR}}/{{BUILD_TYPE}} && python3 -m http.server 8080
+    cd {{BUILD_DIR}} && python3 -m http.server 8080
 
 clean:
     rm -rf {{BUILD_DIR}}

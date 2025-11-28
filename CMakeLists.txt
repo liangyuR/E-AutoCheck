@@ -19,7 +19,7 @@ find_package(absl CONFIG REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
-file(GLOB_RECURSE PROJECT_SOURCES
+file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
     src/*.cpp
     src/client/*.cpp
     include/*.h
@@ -51,7 +51,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     amqpcpp
     event
     yaml-cpp
-    ZLIB::ZLIB
     unofficial::mysql-connector-cpp::connector
+    ZLIB::ZLIB
     absl::base
 )
