@@ -7,9 +7,21 @@
 #include <yaml-cpp/yaml.h>
 
 namespace client {
+
+struct MqttConfig {
+  std::string server_uri = "tcp://localhost:1883";
+  std::string client_id = "auto_charge_client";
+  std::string username;
+  std::string password;
+  int keep_alive = 20;
+  bool clean_session = true;
+
+  static MqttConfig FromYamlFile(const std::string &path);
+};
+
 class MqttClient {
 public:
-  MqttClient(const std::string &config_path);
+  explicit MqttClient(const MqttConfig &config);
   ~MqttClient();
 
   bool Connect();
@@ -22,7 +34,6 @@ public:
                  int qos = 1);
 
 private:
-  void loadConfig_(const std::string &config_path);
   void connectWithConfig_();
 
   std::string server_uri_;
@@ -31,4 +42,4 @@ private:
   std::unique_ptr<mqtt::async_client> client_;
 };
 
-} // namespace auto_charge::client
+} // namespace client

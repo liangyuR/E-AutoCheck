@@ -12,9 +12,24 @@
 #include <yaml-cpp/yaml.h>
 
 namespace client {
+
+struct RabbitMqConfig {
+  std::string host = "127.0.0.1";
+  int port = 5672;
+  std::string username = "guest";
+  std::string password = "guest";
+  std::string vhost = "/";
+  std::string exchange;
+  std::string queue_name = "test111";
+  std::string req_queue;
+  std::string resp_queue;
+
+  static RabbitMqConfig FromYamlFile(const std::string &path);
+};
+
 class RabbitMqClient {
 public:
-  RabbitMqClient(const std::string &config_path);
+  explicit RabbitMqClient(const RabbitMqConfig &config);
   ~RabbitMqClient();
 
   bool Connect();      // 非阻塞连接
@@ -33,7 +48,6 @@ public:
                  std::function<void(const std::string &)> handler);
 
 private:
-  void loadConfig_(const std::string &config_path);
   void setupEventLoop_();
   bool ConnectInternal_(); // 内部连接实现
 
@@ -65,4 +79,4 @@ private:
   // Message handler
   std::function<void(const std::string &)> message_handler_;
 };
-} // namespace auto_charge::client
+} // namespace client

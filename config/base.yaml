@@ -16,6 +16,9 @@ mqtt:
   keep_alive: 20                      # 保活时间(秒)
   clean_session: true                 # 清除会话标志
 
+http:
+  base_url: "http://localhost:8080"   # HTTP服务端基础URL
+
 rabbitmq:
   host: "192.168.6.102"           # RabbitMQ服务器地址
   port: 5672                      # RabbitMQ端口
@@ -41,4 +44,41 @@ rabbitmq_local:
   pile_id: "0005002000224016"     # 桩ID
 
 mysql:
-  
+  rw:
+    host: 127.0.0.1
+    port: 3306
+    user: app
+    password: secret
+    database: appdb
+  ro:
+    - host: 10.0.0.2
+      port: 3306
+      user: app_ro
+      password: secret
+      database: appdb
+    - host: 10.0.0.3
+      port: 3306
+      user: app_ro
+      password: secret
+      database: appdb
+  charset: utf8mb4
+  connect_timeout_ms: 5000
+  read_timeout_ms: 5000
+  write_timeout_ms: 5000
+
+pool:
+  enabled: true
+  max_size: 10
+  min_idle: 2
+  acquire_timeout_ms: 3000
+  keepalive_sec: 60
+
+retry:
+  max_retries: 2
+  base_backoff_ms: 200
+
+behavior:
+  read_from_replicas: true
+  force_master_in_tx: true   # 当前实现无事务API，预留
+  timezone: UTC
+  slow_sql_ms: 200

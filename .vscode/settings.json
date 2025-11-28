@@ -1,6 +1,7 @@
 {
     "clangd.path": "clangd",
     "clangd.arguments": [
+        "--enable-config",
         "--log=verbose",
         "--pretty",
         "--all-scopes-completion",
@@ -13,5 +14,7 @@
         "-I/opt/ros/humble/include"
     ],
     "clangd.checkUpdates": true,
-    "clangd.enableCodeCompletion": true
+    "clangd.enableCodeCompletion": true,
+    "editor.formatOnSave": true,
+    "editor.semanticHighlighting.enabled": true,
 }

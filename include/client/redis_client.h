@@ -56,4 +56,4 @@ private:
   std::future<bool> connection_future_;
 };
 
-} // namespace auto_charge::client
+} // namespace client

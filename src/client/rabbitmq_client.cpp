@@ -5,54 +5,79 @@
 
 namespace client {
 
-RabbitMqClient::RabbitMqClient(const std::string &config_path) {
-  loadConfig_(config_path);
+RabbitMqConfig RabbitMqConfig::FromYamlFile(const std::string &path) {
+  YAML::Node root = YAML::LoadFile(path);
+  RabbitMqConfig config;
+
+  const auto rabbitmq = root["rabbitmq"];
+  if (!rabbitmq) {
+    throw std::runtime_error("Missing 'rabbitmq' section in YAML");
+  }
+
+  if (rabbitmq["host"]) {
+    config.host = rabbitmq["host"].as<std::string>();
+  }
+  if (rabbitmq["port"]) {
+    config.port = rabbitmq["port"].as<int>();
+  }
+  if (rabbitmq["username"]) {
+    config.username = rabbitmq["username"].as<std::string>();
+  }
+  if (rabbitmq["password"]) {
+    config.password = rabbitmq["password"].as<std::string>();
+  }
+  if (rabbitmq["vhost"]) {
+    config.vhost = rabbitmq["vhost"].as<std::string>();
+  }
+  if (rabbitmq["exchange"]) {
+    config.exchange = rabbitmq["exchange"].as<std::string>();
+  }
+  if (rabbitmq["queue_name"]) {
+    config.queue_name = rabbitmq["queue_name"].as<std::string>();
+  }
+
+  // 读取队列模板并替换 %s 占位符
+  std::string req_queue_pattern = "%s.DataServer.req";
+  std::string resp_queue_pattern = "DataServer.%s.resp";
+  if (rabbitmq["req_queue"]) {
+    req_queue_pattern = rabbitmq["req_queue"].as<std::string>();
+  }
+  if (rabbitmq["resp_queue"]) {
+    resp_queue_pattern = rabbitmq["resp_queue"].as<std::string>();
+  }
+
+  // 替换 %s 为 queue_name
+  size_t pos = req_queue_pattern.find("%s");
+  if (pos != std::string::npos) {
+    config.req_queue = req_queue_pattern.replace(pos, 2, config.queue_name);
+  } else {
+    config.req_queue = req_queue_pattern;
+  }
+
+  pos = resp_queue_pattern.find("%s");
+  if (pos != std::string::npos) {
+    config.resp_queue = resp_queue_pattern.replace(pos, 2, config.queue_name);
+  } else {
+    config.resp_queue = resp_queue_pattern;
+  }
+
+  return config;
+}
+
+RabbitMqClient::RabbitMqClient(const RabbitMqConfig &config) {
+  host_ = config.host;
+  port_ = config.port;
+  username_ = config.username;
+  password_ = config.password;
+  vhost_ = config.vhost;
+  exchange_ = config.exchange;
+  queue_name_ = config.queue_name;
+  req_queue_ = config.req_queue;
+  resp_queue_ = config.resp_queue;
   setupEventLoop_();
 }
 
 RabbitMqClient::~RabbitMqClient() { Disconnect(); }
-
-void RabbitMqClient::loadConfig_(const std::string &config_path) {
-  try {
-    YAML::Node config = YAML::LoadFile(config_path);
-    auto rabbitmq_config = config["rabbitmq"];
-
-    host_ = rabbitmq_config["host"].as<std::string>("127.0.0.1");
-    port_ = rabbitmq_config["port"].as<int>(5672);
-    username_ = rabbitmq_config["username"].as<std::string>("guest");
-    password_ = rabbitmq_config["password"].as<std::string>("guest");
-    vhost_ = rabbitmq_config["vhost"].as<std::string>("/");
-    exchange_ = rabbitmq_config["exchange"].as<std::string>("");
-    queue_name_ = rabbitmq_config["queue_name"].as<std::string>("test111");
-
-    // 读取队列模板并替换 %s 占位符
-    auto req_queue_pattern =
-        rabbitmq_config["req_queue"].as<std::string>("%s.DataServer.req");
-    auto resp_queue_pattern =
-        rabbitmq_config["resp_queue"].as<std::string>("DataServer.%s.resp");
-
-    // 替换 %s 为 queue_name
-    size_t pos = req_queue_pattern.find("%s");
-    if (pos != std::string::npos) {
-      req_queue_ = req_queue_pattern.replace(pos, 2, queue_name_);
-    } else {
-      req_queue_ = req_queue_pattern;
-    }
-
-    pos = resp_queue_pattern.find("%s");
-    if (pos != std::string::npos) {
-      resp_queue_ = resp_queue_pattern.replace(pos, 2, queue_name_);
-    } else {
-      resp_queue_ = resp_queue_pattern;
-    }
-
-    LOG(INFO) << "RabbitMQ config loaded: " << host_ << ":" << port_
-              << ", req_queue=" << req_queue_ << ", resp_queue=" << resp_queue_;
-  } catch (const YAML::Exception &e) {
-    LOG(ERROR) << "Failed to load RabbitMQ config: " << e.what();
-    throw;
-  }
-}
 
 void RabbitMqClient::setupEventLoop_() {
   event_base_ = event_base_new();
@@ -293,4 +318,4 @@ void RabbitMqClient::Subscribe(
   }
 }
 
-} // namespace auto_charge::client
+} // namespace client

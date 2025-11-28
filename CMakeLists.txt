@@ -13,6 +13,9 @@ find_package(PahoMqttCpp CONFIG REQUIRED)
 find_package(amqpcpp CONFIG REQUIRED)
 find_package(Libevent CONFIG REQUIRED)
 find_package(yaml-cpp REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(unofficial-mysql-connector-cpp CONFIG REQUIRED)
+find_package(absl CONFIG REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -48,4 +51,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     amqpcpp
     event
     yaml-cpp
+    ZLIB::ZLIB
+    unofficial::mysql-connector-cpp::connector
+    absl::base
 )

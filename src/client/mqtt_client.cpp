@@ -5,8 +5,48 @@
 
 namespace client {
 
-MqttClient::MqttClient(const std::string &config_path) {
-  loadConfig_(config_path);
+MqttConfig MqttConfig::FromYamlFile(const std::string &path) {
+  YAML::Node root = YAML::LoadFile(path);
+  MqttConfig config;
+
+  const auto mqtt = root["mqtt"];
+  if (!mqtt) {
+    throw std::runtime_error("Missing 'mqtt' section in YAML");
+  }
+
+  if (mqtt["server_uri"]) {
+    config.server_uri = mqtt["server_uri"].as<std::string>();
+  }
+  if (mqtt["client_id"]) {
+    config.client_id = mqtt["client_id"].as<std::string>();
+  }
+  if (mqtt["username"]) {
+    config.username = mqtt["username"].as<std::string>();
+  }
+  if (mqtt["password"]) {
+    config.password = mqtt["password"].as<std::string>();
+  }
+  if (mqtt["keep_alive"]) {
+    config.keep_alive = mqtt["keep_alive"].as<int>();
+  }
+  if (mqtt["clean_session"]) {
+    config.clean_session = mqtt["clean_session"].as<bool>();
+  }
+
+  return config;
+}
+
+MqttClient::MqttClient(const MqttConfig &config) {
+  server_uri_ = config.server_uri;
+  client_id_ = config.client_id;
+  conn_opts_.set_keep_alive_interval(config.keep_alive);
+  conn_opts_.set_clean_session(config.clean_session);
+  if (!config.username.empty()) {
+    conn_opts_.set_user_name(config.username);
+  }
+  if (!config.password.empty()) {
+    conn_opts_.set_password(config.password);
+  }
   connectWithConfig_();
 }
 
@@ -56,23 +96,8 @@ void MqttClient::Subscribe(const std::string &topic,
   }
 }
 
-void MqttClient::loadConfig_(const std::string &config_path) {
-  try {
-    YAML::Node config = YAML::LoadFile(config_path);
-    server_uri_ = config["server_uri"].as<std::string>("tcp://localhost:1883");
-    client_id_ = config["client_id"].as<std::string>("auto_charge_client");
-    conn_opts_.set_keep_alive_interval(20);
-    conn_opts_.set_clean_session(true);
-    // Add more options like username/password if needed
-    LOG(INFO) << "MQTT config loaded from " << config_path;
-  } catch (const YAML::Exception &e) {
-    LOG(ERROR) << "Failed to load MQTT config: " << e.what();
-    throw;
-  }
-}
-
 void MqttClient::connectWithConfig_() {
   client_ = std::make_unique<mqtt::async_client>(server_uri_, client_id_);
 }
 
-} // namespace auto_charge::client
+} // namespace client

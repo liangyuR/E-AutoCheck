@@ -188,4 +188,4 @@ void RedisClient::LoadConfig_(const YAML::Node &redis_config) {
   }
 }
 
-} // namespace auto_charge::client
+} // namespace client
