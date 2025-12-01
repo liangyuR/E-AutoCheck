@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
-project(EAutoCheck LANGUAGES CXX)
 set(PROJECT_NAME "EAutoCheck")
+project(${PROJECT_NAME} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,18 +40,16 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    Qt6::Core
-    Qt6::Quick
-    Qt6::QuickControls2
-    glog::glog
-    nlohmann_json::nlohmann_json
-    redis++::redis++_static
-    PahoMqttCpp::paho-mqttpp3
-    PahoMqttCpp::paho-mqttpp3-static
-    amqpcpp
-    event
-    yaml-cpp
-    unofficial::mysql-connector-cpp::connector
-    ZLIB::ZLIB
-    absl::base
+    Qt6::Core                   # Qt 6 核心库
+    Qt6::Quick                  # Qt 6 QML/Quick 库
+    Qt6::QuickControls2         # Qt 6 Quick Controls 2 扩展控件组件
+    glog::glog                  # Google 的日志库（glog）
+    nlohmann_json::nlohmann_json # nlohmann-json，C++ 的 JSON 库
+    yaml-cpp                    # yaml-cpp，YAML 解析库
+    absl::base                  # Abseil 基础组件库
+    redis++::redis++_static     # redis-plus-plus，C++ Redis 客户端（静态库）
+    unofficial::mysql-connector-cpp::connector   # MySQL C++ 连接器
+    PahoMqttCpp::paho-mqttpp3   # Eclipse Paho MQTT C++3 客户端库
+    amqpcpp                     # AMQP 协议 C++ 库，用于与 RabbitMQ 等通信
+    event                       # libevent，事件通知库
 )

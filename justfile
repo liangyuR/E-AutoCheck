@@ -9,10 +9,10 @@ source:
     source /opt/emsdk/emsdk_env.sh
 
 cmake:
-    /opt/Qt/6.8.3/wasm_multithread/bin/qt-cmake -S . -B {{BUILD_DIR}} \
+    /opt/Qt/6.8.3/wasm_singlethread/bin/qt-cmake -S . -B {{BUILD_DIR}} \
       -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-      -DCMAKE_TOOLCHAIN_FILE={{DCMAKE_TOOLCHAIN_FILE}} \
-      -DCMAKE_PREFIX_PATH={{QT_DIR}} \
+      -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake \
+      -DCMAKE_PREFIX_PATH=/opt/Qt/6.8.3/gcc_64/lib/cmake \
       -DCMAKE_BUILD_TYPE={{BUILD_TYPE}} \
       -G Ninja
 
