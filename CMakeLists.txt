@@ -70,7 +70,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     absl::str_format            # Abseil StrFormat
     absl::strings               # Abseil Strings
     redis++::redis++_static     # redis-plus-plus，C++ Redis 客户端（静态库）
-    unofficial::mysql-connector-cpp::connector   # MySQL C++ 连接器
+    unofficial::mysql-connector-cpp::connector 
+    unofficial::mysql-connector-cpp::connector-jdbc
     PahoMqttCpp::paho-mqttpp3   # Eclipse Paho MQTT C++3 客户端库
     amqpcpp                     # AMQP 协议 C++ 库，用于与 RabbitMQ 等通信
     event                       # libevent，事件通知库

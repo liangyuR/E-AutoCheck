@@ -45,22 +45,22 @@ rabbitmq_local:
 
 mysql:
   rw:
-    host: 127.0.0.1
+    host: 192.168.6.101
     port: 3306
-    user: app
-    password: secret
-    database: appdb
+    user: root
+    password: ciobadharua64340853NN
+    database: hcm5155261
   ro:
-    - host: 10.0.0.2
+    - host: 192.168.6.101
       port: 3306
-      user: app_ro
-      password: secret
-      database: appdb
-    - host: 10.0.0.3
+      user: root
+      password: ciobadharua64340853NN
+      database: hcm5155261
+    - host: 192.168.6.101
       port: 3306
-      user: app_ro
-      password: secret
-      database: appdb
+      user: root
+      password: ciobadharua64340853NN
+      database: hcm5155261
   charset: utf8mb4
   connect_timeout_ms: 5000
   read_timeout_ms: 5000
