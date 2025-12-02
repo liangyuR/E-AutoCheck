@@ -29,8 +29,18 @@ struct RabbitMqConfig {
 
 class RabbitMqClient {
 public:
+  static void Init(const RabbitMqConfig &config);
+  static RabbitMqClient *GetInstance();
+
+private:
   explicit RabbitMqClient(const RabbitMqConfig &config);
+
+public:
   ~RabbitMqClient();
+
+  // Delete copy and assignment
+  RabbitMqClient(const RabbitMqClient &) = delete;
+  RabbitMqClient &operator=(const RabbitMqClient &) = delete;
 
   bool Connect();      // 非阻塞连接
   void ConnectAsync(); // 异步连接
@@ -78,5 +88,8 @@ private:
 
   // Message handler
   std::function<void(const std::string &)> message_handler_;
+
+  static std::unique_ptr<RabbitMqClient> instance_;
+  static std::mutex instance_mutex_;
 };
 } // namespace client

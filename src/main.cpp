@@ -4,22 +4,43 @@
 #include <QQuickStyle>
 
 #include "client/http_client.h"
-#include "client/mqtt_client.h"
+#include "client/mysql_client.h"
 #include "client/rabbitmq_client.h"
+#include "client/redis_client.h"
 #include "self_check_manager.h"
 #include "ui/self_check_controller.h"
 #include "utils/log_init.h"
 
 #include <absl/status/status.h>
 #include <glog/logging.h>
+#include <yaml-cpp/yaml.h>
 
 absl::Status InitClient() {
-  client::MqttClient mqttClient(
-      client::MqttConfig::FromYamlFile("config/base.yaml"));
-  client::RabbitMqClient rabbitMqClient(
-      client::RabbitMqConfig::FromYamlFile("config/base.yaml"));
-  client::HttpClient httpClient(
-      client::HttpConfig::FromYamlFile("config/base.yaml"));
+  try {
+    // MySQL
+    auto mysqlConfig = db::Config::FromYamlFile("config/base.yaml");
+    db::MySqlClient::Init(mysqlConfig);
+
+    // RabbitMQ
+    auto rabbitConfig =
+        client::RabbitMqConfig::FromYamlFile("config/base.yaml");
+    client::RabbitMqClient::Init(rabbitConfig);
+
+    // Redis
+    YAML::Node root = YAML::LoadFile("config/base.yaml");
+    if (root["redis"]) {
+      client::RedisClient::Init(root["redis"]);
+    } else {
+      LOG(WARNING) << "Redis config not found in config/base.yaml";
+    }
+
+    // HttpClient (TODO: Convert to singleton or manage lifecycle)
+    client::HttpClient httpClient(
+        client::HttpConfig::FromYamlFile("config/base.yaml"));
+
+  } catch (const std::exception &e) {
+    return absl::InternalError(e.what());
+  }
   return absl::OkStatus();
 }
 

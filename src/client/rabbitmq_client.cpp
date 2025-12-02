@@ -64,6 +64,18 @@ RabbitMqConfig RabbitMqConfig::FromYamlFile(const std::string &path) {
   return config;
 }
 
+std::unique_ptr<RabbitMqClient> RabbitMqClient::instance_;
+std::mutex RabbitMqClient::instance_mutex_;
+
+void RabbitMqClient::Init(const RabbitMqConfig &config) {
+  std::lock_guard<std::mutex> lock(instance_mutex_);
+  if (!instance_) {
+    instance_.reset(new RabbitMqClient(config));
+  }
+}
+
+RabbitMqClient *RabbitMqClient::GetInstance() { return instance_.get(); }
+
 RabbitMqClient::RabbitMqClient(const RabbitMqConfig &config) {
   host_ = config.host;
   port_ = config.port;

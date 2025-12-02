@@ -14,16 +14,20 @@
 namespace client {
 class RedisClient {
 public:
-  // Factory method - 非阻塞创建
-  static std::unique_ptr<RedisClient> Create(const YAML::Node &redis_config);
+  // Singleton management
+  static void Init(const YAML::Node &redis_config);
+  static RedisClient *GetInstance();
 
   // Delete copy constructor and assignment
   RedisClient(const RedisClient &) = delete;
   RedisClient &operator=(const RedisClient &) = delete;
 
   // Move constructor and assignment - 由于包含 std::future，需要手动实现
-  RedisClient(RedisClient &&other) noexcept;
-  RedisClient &operator=(RedisClient &&other) noexcept;
+  // Singleton usually doesn't need move, but we can keep or delete.
+  // Given it's a singleton held by unique_ptr, we generally don't move the
+  // instance around. But let's delete move as well for strict singleton.
+  RedisClient(RedisClient &&) = delete;
+  RedisClient &operator=(RedisClient &&) = delete;
 
   ~RedisClient();
 
@@ -44,7 +48,7 @@ public:
                                   const std::string &field) const;
 
 private:
-  RedisClient(const YAML::Node &redis_config);
+  explicit RedisClient(const YAML::Node &redis_config);
 
   void LoadConfig_(const YAML::Node &redis_config);
   bool ConnectInternal_(); // 内部连接实现
@@ -54,6 +58,9 @@ private:
   std::atomic<bool> connected_{false};
   std::atomic<bool> connecting_{false};
   std::future<bool> connection_future_;
+
+  static std::unique_ptr<RedisClient> instance_;
+  static std::mutex instance_mutex_;
 };
 
 } // namespace client

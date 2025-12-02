@@ -438,6 +438,19 @@ auto WithRetry(const RetryConfig &rc, Fn &&fn) -> decltype(fn()) {
 // ---------------------------
 // MySqlClient impl (X DevAPI)
 // ---------------------------
+std::unique_ptr<MySqlClient> MySqlClient::instance_;
+std::mutex MySqlClient::instance_mutex_;
+
+void MySqlClient::Init(const Config &cfg) {
+  std::lock_guard<std::mutex> lock(instance_mutex_);
+  if (!instance_) {
+    // private constructor, cannot use make_unique
+    instance_.reset(new MySqlClient(cfg));
+  }
+}
+
+MySqlClient *MySqlClient::GetInstance() { return instance_.get(); }
+
 MySqlClient::MySqlClient(const Config &cfg) : cfg_(cfg) {
   pool_.reset(new ConnectionPool(cfg_));
 }

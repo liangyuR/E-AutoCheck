@@ -4,37 +4,22 @@
 #include <memory>
 
 namespace client {
-std::unique_ptr<RedisClient>
-RedisClient::Create(const YAML::Node &redis_config) {
-  return std::unique_ptr<RedisClient>(new RedisClient(redis_config));
+
+std::unique_ptr<RedisClient> RedisClient::instance_;
+std::mutex RedisClient::instance_mutex_;
+
+void RedisClient::Init(const YAML::Node &redis_config) {
+  std::lock_guard<std::mutex> lock(instance_mutex_);
+  if (!instance_) {
+    instance_.reset(new RedisClient(redis_config));
+  }
 }
+
+RedisClient *RedisClient::GetInstance() { return instance_.get(); }
 
 RedisClient::RedisClient(const YAML::Node &redis_config) {
   LoadConfig_(redis_config);
   // 不再在构造函数中连接，避免阻塞
-}
-
-RedisClient::RedisClient(RedisClient &&other) noexcept
-    : connection_options_(std::move(other.connection_options_)),
-      redis_(std::move(other.redis_)), connected_(other.connected_.load()),
-      connecting_(other.connecting_.load()),
-      connection_future_(std::move(other.connection_future_)) {
-  other.connected_.store(false);
-  other.connecting_.store(false);
-}
-
-RedisClient &RedisClient::operator=(RedisClient &&other) noexcept {
-  if (this != &other) {
-    Disconnect();
-    connection_options_ = std::move(other.connection_options_);
-    redis_ = std::move(other.redis_);
-    connected_.store(other.connected_.load());
-    connecting_.store(other.connecting_.load());
-    connection_future_ = std::move(other.connection_future_);
-    other.connected_.store(false);
-    other.connecting_.store(false);
-  }
-  return *this;
 }
 
 RedisClient::~RedisClient() { Disconnect(); }

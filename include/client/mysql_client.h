@@ -113,8 +113,18 @@ class ConnectionPool;
 // ---------------------------
 class MySqlClient {
 public:
+  static void Init(const Config &cfg);
+  static MySqlClient *GetInstance();
+
+private:
   explicit MySqlClient(const Config &cfg);
+
+public:
   ~MySqlClient();
+
+  // Delete copy and assignment
+  MySqlClient(const MySqlClient &) = delete;
+  MySqlClient &operator=(const MySqlClient &) = delete;
 
   // SELECT; useReplica=true → 从库；false → 主库
   std::vector<std::unordered_map<std::string, std::string>>
@@ -131,6 +141,9 @@ public:
 private:
   std::unique_ptr<ConnectionPool> pool_;
   Config cfg_;
+
+  static std::unique_ptr<MySqlClient> instance_;
+  static std::mutex instance_mutex_;
 };
 
 } // namespace db
