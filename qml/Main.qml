@@ -1,112 +1,169 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Layouts
-import EAutoCheck 1.0
+import GUI
 
 ApplicationWindow {
-    id: root
-    width: 540
-    height: 640
+    id: window
+
+    height: 360 * 3
+    title: "E-AutoCheck"
     visible: true
-    title: qsTr("Self Check Demo")
-    property var selfCheck: EAutoCheck.SelfCheck
+    width: 360 * 4
 
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 24
-        spacing: 16
-
-        Label {
-            text: qsTr("充电箱自检调试")
-            font.pixelSize: 24
-            Layout.bottomMargin: 12
-        }
-
-        TextField {
-            id: deviceIdInput
-            Layout.fillWidth: true
-            placeholderText: qsTr("设备 ID，例如 CHG-001")
-            text: "CHG-001"
-        }
-
-        Button {
-            Layout.fillWidth: true
-            text: selfCheck.isChecking ? qsTr("自检中...") : qsTr("触发充电箱自检")
-            enabled: !selfCheck.isChecking
-            onClicked: {
-                const trimmedId = deviceIdInput.text.trim();
-                if (!trimmedId.length)
-                    return;
-                const reqId = selfCheck.triggerChargerBox(trimmedId);
-                lastRequestLabel.text = qsTr("Request ID: ") + reqId;
+    // Load icon font
+    FontLoader {
+        id: iconFontLoader
+        source: "qrc:/qt/qml/GUI/assets/fonts/MaterialIcons-Regular.ttf"
+        onStatusChanged: {
+            if (status === FontLoader.Error) {
+                console.warn("Failed to load icon font. Please ensure MaterialIcons-Regular.ttf is in assets/fonts/")
             }
         }
+    }
 
-        Label {
-            id: statusLabel
-            Layout.fillWidth: true
-            text: selfCheck.isChecking ?
-                      qsTr("状态：自检进行中...") :
-                      qsTr("最近状态：") + selfCheck.lastOverallStatus()
-        }
+    background: Rectangle {
+        color: AppTheme.backgroundPrimary
+    }
 
-        Label {
-            id: lastRequestLabel
-            Layout.fillWidth: true
-            text: qsTr("Request ID: -")
-            color: "#666666"
-        }
+    // 主布局
+    ColumnLayout {
+        anchors.fill: parent
 
-        Rectangle {
-            Layout.fillWidth: true
+        // 主要内容区域
+        RowLayout {
             Layout.fillHeight: true
-            radius: 8
-            color: "#f5f5f5"
-            border.color: "#dcdcdc"
+            Layout.fillWidth: true
 
-            ListView {
-                id: moduleList
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
-                clip: true
-                model: selfCheck.lastModules()
+            // 左侧导航栏
+            Pane {
+                Layout.fillHeight: true
+                Layout.preferredWidth: AppLayout.navigationBarWidth
 
-                delegate: Rectangle {
-                    width: moduleList.width
-                    height: 64
-                    radius: 6
-                    color: "#ffffff"
-                    border.color: modelData.status === "warn" ? "#ffb74d"
-                                 : modelData.status === "error" ? "#ef5350"
-                                                                : "#e0e0e0"
+                background: Rectangle {
+                    color: AppTheme.backgroundPrimary
+                }
 
-                    Column {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 4
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: AppLayout.spacingLarge
 
-                        Text {
-                            text: modelData.name + " (" + modelData.status + ")"
-                            font.pixelSize: 16
+                    Label {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
+                        Layout.topMargin: AppLayout.marginMedium
+                        font: AppFont.title
+                        text: "E-AutoCheck" + "\n" + "0.0.1"
+                    }
+                    ListView {
+                        id: navListView
+
+                        Layout.fillHeight: true
+                        Layout.fillWidth: true
+
+                        delegate: ItemDelegate {
+                            height: AppLayout.touchButtonHeight
+                            width: parent.width
+
+                            background: Rectangle {
+                                color: navListView.currentIndex === index ? AppTheme.accent : "transparent"
+                                opacity: navListView.currentIndex === index ? 0.1 : 0
+                            }
+
+                            onClicked: {
+                                navListView.currentIndex = index;
+                                switch (model.page) {
+                                case "homePage":
+                                    stackView.replace(homePage);
+                                    break;
+                                case "settingsPage":
+                                    stackView.replace(settingsPage);
+                                    break;
+                                }
+                            }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: AppLayout.marginMedium
+                                anchors.rightMargin: AppLayout.marginMedium
+                                spacing: AppLayout.spacingMedium
+
+                                Label {
+                                    font.family: AppFont.iconFontFamily
+                                    font.pixelSize: AppFont.subtitleFontSize
+                                    text: model.icon
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    font: AppFont.body
+                                    text: model.name
+                                }
+                                Rectangle {
+                                    color: AppTheme.accent
+                                    height: parent.height - AppLayout.marginMedium
+                                    radius: AppLayout.radiusSmall
+                                    visible: navListView.currentIndex === index
+                                    width: 4
+                                }
+                            }
                         }
-
-                        Text {
-                            text: modelData.message
-                            font.pixelSize: 13
-                            color: "#555555"
-                            elide: Text.ElideRight
+                        model: ListModel {
+                            ListElement {
+                                icon: "\uE88A"
+                                name: "Home"
+                                page: "homePage"
+                            }
+                            ListElement {
+                                icon: "\uE8B8"
+                                name: "Settings"
+                                page: "settingsPage"
+                            }
                         }
                     }
                 }
             }
 
-            Label {
-                anchors.centerIn: parent
-                visible: moduleList.count === 0
-                text: qsTr("暂无自检结果，点击上方按钮触发一次。")
-                color: "#888888"
+            // 右侧内容区域
+            StackView {
+                id: stackView
+
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                initialItem: homePage
+
+                // 页面切换动画
+                replaceEnter: Transition {
+                    PropertyAnimation {
+                        duration: AppLayout.touchAnimationDuration
+                        from: 0
+                        property: "opacity"
+                        to: 1
+                    }
+                }
+                replaceExit: Transition {
+                    PropertyAnimation {
+                        duration: AppLayout.touchAnimationDuration
+                        from: 1
+                        property: "opacity"
+                        to: 0
+                    }
+                }
             }
+        }
+    }
+
+    Component {
+        id: homePage
+        Home {
+        }
+    }
+
+    Component {
+        id: settingsPage
+
+        ScrollView {
+            clip: true
         }
     }
 }

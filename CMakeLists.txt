@@ -13,26 +13,47 @@ find_package(PahoMqttCpp CONFIG REQUIRED)
 find_package(amqpcpp CONFIG REQUIRED)
 find_package(Libevent CONFIG REQUIRED)
 find_package(yaml-cpp REQUIRED)
-find_package(ZLIB REQUIRED)
-find_package(unofficial-mysql-connector-cpp CONFIG REQUIRED)
 find_package(absl CONFIG REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
-file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
+file(GLOB_RECURSE PROJECT_SOURCES
     src/*.cpp
     src/client/*.cpp
     include/*.h
 )
+# 排除 mysql_client.h 和 mysql_client.cpp
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/client/mysql_client\\.cpp$")
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/client/mysql_client\\.h$")
 
 qt_add_executable(${PROJECT_NAME}
     ${PROJECT_SOURCES}
 )
 
+set_source_files_properties(qml/style/AppTheme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/style/AppFont.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/style/AppLayout.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+
 qt_add_qml_module(${PROJECT_NAME}
     URI GUI
     QML_FILES
-        qml/Main.qml        
+        qml/Main.qml
+
+        qml/page/Home.qml
+        
+        qml/components/DeviceCard.qml
+        qml/components/ChargingPileCard.qml
+
+        qml/style/AppLayout.qml
+        qml/style/AppFont.qml
+        qml/style/AppTheme.qml
+    RESOURCES
+        qml/qtquickcontrols2.conf
+
+        assets/fonts/Roboto-Bold.ttf
+        assets/fonts/Roboto-Medium.ttf
+        assets/fonts/Roboto-Regular.ttf
+        assets/fonts/MaterialIcons-Regular.ttf
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -47,9 +68,28 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     nlohmann_json::nlohmann_json # nlohmann-json，C++ 的 JSON 库
     yaml-cpp                    # yaml-cpp，YAML 解析库
     absl::base                  # Abseil 基础组件库
+    absl::status                # Abseil Status
+    absl::str_format            # Abseil StrFormat
+    absl::strings               # Abseil Strings
     redis++::redis++_static     # redis-plus-plus，C++ Redis 客户端（静态库）
-    unofficial::mysql-connector-cpp::connector   # MySQL C++ 连接器
+    # unofficial::mysql-connector-cpp::connector   # MySQL C++ 连接器
     PahoMqttCpp::paho-mqttpp3   # Eclipse Paho MQTT C++3 客户端库
     amqpcpp                     # AMQP 协议 C++ 库，用于与 RabbitMQ 等通信
     event                       # libevent，事件通知库
 )
+
+
+install(TARGETS ${PROJECT_NAME}
+    BUNDLE  DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+qt_generate_deploy_qml_app_script(
+    TARGET ${PROJECT_NAME}
+    OUTPUT_SCRIPT deploy_script
+    MACOS_BUNDLE_POST_BUILD
+    NO_UNSUPPORTED_PLATFORM_ERROR
+    DEPLOY_USER_QML_MODULES_ON_UNSUPPORTED_PLATFORM
+)
+install(SCRIPT ${deploy_script})
