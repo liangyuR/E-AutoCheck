@@ -6,35 +6,36 @@
 #include <absl/status/status.h>
 #include <qtmetamacros.h>
 
+namespace device {
+class DeviceManager;
+}
+
 namespace EAutoCheck {
 
 class CheckManager : public QObject {
   Q_OBJECT
 
 public:
-  explicit CheckManager(QObject *parent = nullptr);
+  explicit CheckManager(device::DeviceManager *device_manager,
+                        QObject *parent = nullptr);
   ~CheckManager() override;
 
   Q_INVOKABLE absl::Status CheckDevice(const QString &equip_no);
 
-  absl::Status Subscribe();
-
-signals:
-  void checkStatusUpdated(QString pileId, QString desc, int result,
-                          bool isFinished, bool isChecking);
-  void checkResultReady(QString pileId, int result, int successCount,
-                        int failCount, int code);
+  absl::Status SubMsg();
 
 private:
-  void ReceiveMessage(const std::string &message);
+  void recvMsg(const std::string &message);
+
+  absl::Status processAndSaveResult(const std::string &device_id);
 
   struct PendingCheck {
     QString deviceId;
     QString checkType;
   };
 
-  QHash<QString, PendingCheck> onSelfCheckResultReadypending_checks_;
   std::atomic<uint64_t> sequence_index_{1};
+  device::DeviceManager *device_manager_;
 };
 
 } // namespace EAutoCheck

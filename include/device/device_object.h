@@ -2,10 +2,16 @@
 
 #include <chrono>
 #include <cstdint>
+#include <iostream>
 #include <string>
 #include <vector>
 
 namespace device {
+
+enum DeviceTypes {
+  kPILE = 1,
+  kSTACK = 2,
+};
 
 // 故障等级
 enum class FaultLevel {
@@ -103,4 +109,152 @@ struct SelfCheckResult {
   int fail_count = 0;
 };
 
+// 交流接触器
+struct ACContactorStatus {
+  bool contactor1_stuck = false;  // 交流接触器 1 粘连
+  bool contactor1_refuse = false; // 交流接触器 1 拒动
+
+  friend std::ostream &operator<<(std::ostream &output_stream,
+                                  const ACContactorStatus &attr) {
+    output_stream << "ACContactorStatus{"
+                  << "contactor_stuck=" << attr.contactor1_stuck
+                  << ", contactor_refuse=" << attr.contactor1_refuse << "}";
+    return output_stream;
+  }
+};
+
+// 并联接触器相关
+struct ParallelContactorStatus {
+  bool positive_stuck = false;  // 并联接触器正极粘连
+  bool positive_refuse = false; // 并联接触器正极拒动
+  bool negative_stuck = false;  // 并联接触器负极粘连
+  bool negative_refuse = false; // 并联接触器负极拒动
+
+  friend std::ostream &operator<<(std::ostream &output_stream,
+                                  const ParallelContactorStatus &attr) {
+    output_stream << "ParallelContactorStatus{"
+                  << "positive_stuck=" << attr.positive_stuck
+                  << ", positive_refuse=" << attr.positive_refuse
+                  << ", negative_stuck=" << attr.negative_stuck
+                  << ", negative_refuse=" << attr.negative_refuse << "}";
+    return output_stream;
+  }
+};
+
+struct FanStatus {
+  bool stopped = false;  // 停转状态反馈
+  bool rotating = false; // 转动状态反馈
+
+  friend std::ostream &operator<<(std::ostream &output_stream,
+                                  const FanStatus &attr) {
+    output_stream << "FanStatus{"
+                  << "stopped=" << attr.stopped
+                  << ", rotating=" << attr.rotating << "}";
+    return output_stream;
+  }
+};
+
+// 4. 枪状态 (A/B 枪通用结构)
+struct GunStatus {
+  bool positive_contactor_stuck = false;  // 正极接触器粘连
+  bool positive_contactor_refuse = false; // 正极接触器拒动
+  bool negative_contactor_stuck = false;  // 负极接触器粘连
+  bool negative_contactor_refuse = false; // 负极接触器拒动
+  bool unlocked = false;                  // 解锁状态反馈
+  bool locked = false;                    // 上锁状态反馈
+  bool aux_power_12v = false;             // 12V 辅源状态
+  bool aux_power_24v = false;             // 24V 辅源状态
+
+  friend std::ostream &operator<<(std::ostream &output_stream,
+                                  const GunStatus &attr) {
+    output_stream
+        << "GunStatus{"
+        << "positive_contactor_stuck=" << attr.positive_contactor_stuck
+        << ", positive_contactor_refuse=" << attr.positive_contactor_refuse
+        << ", negative_contactor_stuck=" << attr.negative_contactor_stuck
+        << ", negative_contactor_refuse=" << attr.negative_contactor_refuse
+        << ", unlocked=" << attr.unlocked << ", locked=" << attr.locked
+        << ", aux_power_12v=" << attr.aux_power_12v
+        << ", aux_power_24v=" << attr.aux_power_24v << "}";
+    return output_stream;
+  }
+};
+
+// CCU 属性结构体
+struct CCUAttributes {
+
+  ACContactorStatus ac_contactor_1;
+  ACContactorStatus ac_contactor_2;
+
+  ParallelContactorStatus parallel_contactor;
+
+  FanStatus fan_1;
+  FanStatus fan_2;
+  FanStatus fan_3;
+  FanStatus fan_4;
+
+  GunStatus gun_a;
+  GunStatus gun_b;
+
+  friend std::ostream &operator<<(std::ostream &output_stream,
+                                  const CCUAttributes &attr) {
+    output_stream << "CCUAttributes{"
+                  << "ac_contactor_1=" << attr.ac_contactor_1
+                  << ", ac_contactor_2=" << attr.ac_contactor_2
+                  << ", parallel_contactor=" << attr.parallel_contactor
+                  << ", fan_1=" << attr.fan_1 << ", fan_2=" << attr.fan_2
+                  << ", fan_3=" << attr.fan_3 << ", fan_4=" << attr.fan_4
+                  << ", gun_a=" << attr.gun_a << ", gun_b=" << attr.gun_b
+                  << "}";
+    return output_stream;
+  }
+};
+
+struct ChargerBoxAttributes {
+  int db_id = 0;
+
+  std::string station_no; // StationNo：站点编号
+  std::string equip_no; // EquipNo：设备编号（通常也是业务上的唯一 ID）
+  std::string name;    // EquipName：终端1/终端2...
+  std::string name_en; // EquipNameEn：No.1 TCU...
+  std::string type;    // Type：PILE / SWAP / 其他
+
+  std::string ip_addr; // IPAddr：192.168.x.x
+  int gun_count = 0;   // GunCount：枪数量
+  int equip_order = 0; // EquipOrder：排序
+
+  int encrypt = 0;        // Encrypt：是否加密
+  std::string secret_key; // SecretKey
+  std::string secret_iv;  // SecretIV
+
+  int data1 = 0; // Data1：按现有表结构保留
+  int data3 = 0; // Data3：通常是 24 等含义，后续可用枚举封装
+  std::string data2_json; // Data2：目前是 <null>，预留
+  std::string data4_json; // Data4：[{"no":9,"gun":"1,2"}] 之类的 JSON 串
+
+  std::vector<CCUAttributes> ccu_attributes; // CCU 信息，需要从 Redis 中获取
+
+  friend std::ostream &operator<<(std::ostream &output_stream,
+                                  const ChargerBoxAttributes &attr) {
+    output_stream << "ChargerBoxAttributes{"
+                  << "db_id=" << attr.db_id << ", "
+                  << "station_no='" << attr.station_no << "', "
+                  << "equip_no='" << attr.equip_no << "', "
+                  << "name='" << attr.name << "', "
+                  << "name_en='" << attr.name_en << "', "
+                  << "type='" << attr.type << "', "
+                  << "ip_addr='" << attr.ip_addr << "', "
+                  << "gun_count=" << attr.gun_count << ", "
+                  << "equip_order=" << attr.equip_order << ", "
+                  << "encrypt=" << attr.encrypt << ", "
+                  << "secret_key='" << attr.secret_key << "', "
+                  << "secret_iv='" << attr.secret_iv << "', "
+                  << "data1=" << attr.data1 << ", "
+                  << "data3=" << attr.data3 << ", "
+                  << "data2_json='" << attr.data2_json << "', "
+                  << "data4_json='" << attr.data4_json << "'"
+                  << "}";
+    return output_stream;
+  }
+};
 } // namespace device

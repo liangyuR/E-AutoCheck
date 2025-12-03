@@ -7,8 +7,8 @@ import GUI
 ApplicationWindow {
     id: window
 
-    height: 1080
-    width: 1920
+    height: 1400
+    width: 2240
     title: "E-AutoCheck"
     visible: true
 

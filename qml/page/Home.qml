@@ -5,8 +5,6 @@ import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
 import Qt5Compat.GraphicalEffects
 import GUI
-// 导入单例模块（如果 cmake 中定义了 URI 为 GUI，且 DeviceManager 注册到了 EAutoCheck）
-// 检查 main.cpp: qmlRegisterSingletonInstance("EAutoCheck", 1, 0, "DeviceManager", ...)
 import EAutoCheck 1.0 
 
 Page {
