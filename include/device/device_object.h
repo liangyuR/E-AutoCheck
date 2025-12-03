@@ -91,6 +91,16 @@ struct SelfCheckResult {
 
   // 自检序列号 / 任务 ID（方便链路追踪）
   std::string task_id;
+
+  // 最后自检时间字符串（用于 UI 显示）
+  std::string last_check_time_str;
+
+  // 最后自检结果：0=成功，非0=失败
+  int last_check_result = 0;
+
+  // 成功和失败的模块数量（用于统计）
+  int success_count = 0;
+  int fail_count = 0;
 };
 
 } // namespace device

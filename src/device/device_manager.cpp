@@ -48,6 +48,8 @@ QVariant DeviceManager::data(const QModelIndex &index, int role) const {
     return QString::fromStdString(device->CurrentSelfCheckDesc());
   case IsCheckingRole:
     return device->IsSelfChecking();
+  case LastCheckTimeRole:
+    return QString::fromStdString(device->LastCheckTime());
   }
 
   return QVariant();
@@ -66,18 +68,22 @@ QHash<int, QByteArray> DeviceManager::roleNames() const {
   roles[IsOnlineRole] = "isOnline";
   roles[StatusTextRole] = "statusText";
   roles[IsCheckingRole] = "isChecking";
+  roles[LastCheckTimeRole] = "lastCheckTime";
   return roles;
 }
 
 DeviceManager::DevicePtr DeviceManager::addDevice(ChargerBoxAttributes attrs) {
-  // 注意：必须在持有锁之前创建 shared_ptr，但锁的范围需要覆盖 map 和 vector 操作
-  // 因为 addDevice 可能在后台线程调用，而 UI 线程在读取
-  // QAbstractListModel 的 begin/endInsertRows 只能在 UI 线程调用吗？
+  // 注意：必须在持有锁之前创建 shared_ptr，但锁的范围需要覆盖 map 和 vector
+  // 操作 因为 addDevice 可能在后台线程调用，而 UI 线程在读取 QAbstractListModel
+  // 的 begin/endInsertRows 只能在 UI 线程调用吗？
   // 不，它们发出的信号是线程安全的，但是 Model 的内部数据结构必须受保护。
-  // 实际上，如果是在后台线程调用 beginInsertRows，信号连接到 UI 可能会有跨线程问题。
-  // 但 Qt 的信号槽机制处理了跨线程连接（QueuedConnection）。
-  // 最安全的做法是确保 addDevice 也是在主线程调用的（现在的 main.cpp 逻辑正是如此，invokeMethod 到了主线程）。
+  // 实际上，如果是在后台线程调用 beginInsertRows，信号连接到 UI
+  // 可能会有跨线程问题。 但 Qt
+  // 的信号槽机制处理了跨线程连接（QueuedConnection）。 最安全的做法是确保
+  // addDevice 也是在主线程调用的（现在的 main.cpp 逻辑正是如此，invokeMethod
+  // 到了主线程）。
 
+  DLOG(INFO) << "addDevice: " << attrs;
   auto device = std::make_shared<ChargerBoxDevice>(std::move(attrs));
   const auto &key = device->Id();
 
@@ -98,11 +104,12 @@ DeviceManager::DevicePtr DeviceManager::addDevice(ChargerBoxAttributes attrs) {
         if (device_list_[i]->Id() == key) {
           device_list_[i] = device;
           device_map_[key] = device;
-          // 释放锁后发送信号？不，dataChanged 是信号，可以在锁内发，但最好尽早释放
+          // 释放锁后发送信号？不，dataChanged
+          // 是信号，可以在锁内发，但最好尽早释放
           // 这里简单处理，锁内发也没事，因为是 invokeMethod 调用的，在主线程
           QModelIndex idx = index(static_cast<int>(i));
-          // const_cast 因为 dataChanged 是非 const 的，但在 const 成员函数中不能调？
-          // addDevice 不是 const 的，没问题。
+          // const_cast 因为 dataChanged 是非 const 的，但在 const
+          // 成员函数中不能调？ addDevice 不是 const 的，没问题。
           // 但由于我们手动加了锁，要小心死锁。这里没调外部代码，安全。
           const_cast<DeviceManager *>(this)->dataChanged(idx, idx);
           LOG(INFO) << "Device updated: " << key;
@@ -191,14 +198,31 @@ void DeviceManager::updateStatus(const std::string &equip_no,
 
 void DeviceManager::updateSelfCheck(const std::string &equip_no,
                                     const SelfCheckResult &result) {
-  // 同上，暂不发信号，除非 UI 需要展示自检结果
-  std::lock_guard<std::mutex> lock(mutex_);
-  auto it = device_map_.find(equip_no);
-  if (it == device_map_.end()) {
-    LOG(WARNING) << "updateSelfCheck: device not found, equip_no=" << equip_no;
-    return;
+  int row = -1;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = device_map_.find(equip_no);
+    if (it == device_map_.end()) {
+      LOG(WARNING) << "updateSelfCheck: device not found, equip_no="
+                   << equip_no;
+      return;
+    }
+    it->second->UpdateSelfCheck(result);
+
+    // 查找 row index 以发送信号
+    for (size_t i = 0; i < device_list_.size(); ++i) {
+      if (device_list_[i]->Id() == equip_no) {
+        row = static_cast<int>(i);
+        break;
+      }
+    }
   }
-  it->second->UpdateSelfCheck(result);
+
+  if (row >= 0) {
+    QModelIndex idx = index(row);
+    // 通知最后自检时间相关的 Role 发生了变化
+    emit dataChanged(idx, idx, {LastCheckTimeRole, StatusTextRole});
+  }
 }
 
 void DeviceManager::updateSelfCheckProgress(const std::string &equip_no,

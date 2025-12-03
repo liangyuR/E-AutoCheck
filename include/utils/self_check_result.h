@@ -113,6 +113,16 @@ struct SelfCheckResult {
 
   // 子模块状态列表
   std::vector<ModuleStatus> modules;
+
+  // 最后自检时间（UTC, ISO8601）
+  Timestamp last_check_time;
+
+  // 最后自检结果：0=成功，非0=失败
+  int last_check_result = 0;
+
+  // 成功和失败的模块数量（用于统计）
+  int success_count = 0;
+  int fail_count = 0;
 };
 
 } // namespace selfcheck

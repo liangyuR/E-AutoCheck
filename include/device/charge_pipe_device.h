@@ -1,6 +1,9 @@
 #pragma once
 
 #include "device/device_object.h"
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 #include <string>
 
 namespace device {
@@ -25,6 +28,29 @@ struct ChargerBoxAttributes {
   int data3 = 0; // Data3：通常是 24 等含义，后续可用枚举封装
   std::string data2_json; // Data2：目前是 <null>，预留
   std::string data4_json; // Data4：[{"no":9,"gun":"1,2"}] 之类的 JSON 串
+
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const ChargerBoxAttributes &attr) {
+    os << "ChargerBoxAttributes{"
+       << "db_id=" << attr.db_id << ", "
+       << "station_no='" << attr.station_no << "', "
+       << "equip_no='" << attr.equip_no << "', "
+       << "name='" << attr.name << "', "
+       << "name_en='" << attr.name_en << "', "
+       << "type='" << attr.type << "', "
+       << "ip_addr='" << attr.ip_addr << "', "
+       << "gun_count=" << attr.gun_count << ", "
+       << "equip_order=" << attr.equip_order << ", "
+       << "encrypt=" << attr.encrypt << ", "
+       << "secret_key='" << attr.secret_key << "', "
+       << "secret_iv='" << attr.secret_iv << "', "
+       << "data1=" << attr.data1 << ", "
+       << "data3=" << attr.data3 << ", "
+       << "data2_json='" << attr.data2_json << "', "
+       << "data4_json='" << attr.data4_json << "'"
+       << "}";
+    return os;
+  }
 };
 
 // ==== 充电箱设备实例 ====
@@ -49,8 +75,22 @@ public:
   }
 
   // 更新状态（由 DeviceManager / SelfCheckManager 调用）
-  void UpdateStatus(const DeviceStatus &s) {}       // TODO
-  void UpdateSelfCheck(const SelfCheckResult &r) {} // TODO
+  void UpdateStatus(const DeviceStatus &s) {} // TODO
+  void UpdateSelfCheck(const SelfCheckResult &r) {
+    last_self_check_ = r;
+    // 更新最后自检时间字符串
+    if (!r.last_check_time_str.empty()) {
+      last_check_time_str_ = r.last_check_time_str;
+    } else {
+      // 如果没有字符串时间，从 finish_time 转换
+      if (r.finish_time.time_since_epoch().count() > 0) {
+        auto time_t = std::chrono::system_clock::to_time_t(r.finish_time);
+        std::ostringstream oss;
+        oss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
+        last_check_time_str_ = oss.str();
+      }
+    }
+  }
 
   // 更新自检进度（由 SelfCheckManager 通过 DeviceManager 调用）
   void UpdateSelfCheckProgress(const std::string &desc, bool is_checking) {
@@ -63,6 +103,9 @@ public:
     return current_self_check_desc_;
   }
   bool IsSelfChecking() const noexcept { return is_self_checking_; }
+  const std::string &LastCheckTime() const noexcept {
+    return last_check_time_str_;
+  }
 
   // 一些便捷判断接口（具体逻辑在 .cpp 中实现）
   bool IsOnline() const {
@@ -74,10 +117,11 @@ public:
 
 private:
   ChargerBoxAttributes attrs_;
-  DeviceStatus status_{};             // 默认 Unknown/Offline 等
-  SelfCheckResult last_self_check_{}; // 默认空结果
+  DeviceStatus status_{};               // 默认 Unknown/Offline 等
+  SelfCheckResult last_self_check_{};   // 默认空结果
   std::string current_self_check_desc_; // 当前自检进度描述
-  bool is_self_checking_ = false;      // 是否正在自检
+  bool is_self_checking_ = false;       // 是否正在自检
+  std::string last_check_time_str_; // 最后自检时间字符串（用于 UI 显示）
 };
 
 } // namespace device

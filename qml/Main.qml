@@ -7,10 +7,10 @@ import GUI
 ApplicationWindow {
     id: window
 
-    height: 360 * 3
+    height: 1080
+    width: 1920
     title: "E-AutoCheck"
     visible: true
-    width: 360 * 4
 
     // Load icon font
     FontLoader {

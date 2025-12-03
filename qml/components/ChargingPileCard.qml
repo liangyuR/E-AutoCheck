@@ -19,7 +19,7 @@ Control {
     property string statusLevel: "normal" // "normal" / "warning" / "error"
     property bool checking: false
     property int checkProgress: 0      // 当前进度
-    property int checkTotal: 10        // 总项数
+    property int checkTotal: 1         // 总项数
 
     // 长按进度
     property real longPressProgress: 0.0
@@ -28,7 +28,7 @@ Control {
     signal selfCheckRequested(string deviceId)
     signal cardLongPressed(string deviceId)
 
-    implicitWidth: 340
+    implicitWidth: 440
     implicitHeight: 300
     padding: 0
 

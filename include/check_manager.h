@@ -21,7 +21,9 @@ public:
 
 signals:
   void checkStatusUpdated(QString pileId, QString desc, int result,
-                          bool isFinished);
+                          bool isFinished, bool isChecking);
+  void checkResultReady(QString pileId, int result, int successCount,
+                        int failCount, int code);
 
 private:
   void ReceiveMessage(const std::string &message);

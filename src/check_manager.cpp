@@ -59,48 +59,107 @@ absl::Status CheckManager::CheckDevice(const QString &equip_no) {
 void CheckManager::ReceiveMessage(const std::string &message) {
   try {
     nlohmann::json j = nlohmann::json::parse(message);
-    // 验证必需字段
-    if (!j.contains("ReqType") || !j.contains("Result") ||
-        !j.contains("Data")) {
-      LOG(WARNING) << "Invalid message format, missing required fields";
+
+    if (!j.contains("Data")) {
+      LOG(WARNING) << "Invalid message format, missing Data field";
       return;
     }
 
-    int req_type = j["ReqType"].get<int>();
-    int result = j["Result"].get<int>();
     auto data = j["Data"];
-
-    // 只处理自检相关的消息 (ReqType 1001)
-    if (req_type != 1001) {
-      return;
-    }
-
-    if (!data.contains("pileId") || !data.contains("desc")) {
-      LOG(WARNING) << "Invalid Data field, missing pileId or desc";
+    if (!data.contains("pileId")) {
+      LOG(WARNING) << "Invalid Data field, missing pileId";
       return;
     }
 
     std::string pile_id = data["pileId"].get<std::string>();
-    std::string desc = data["desc"].get<std::string>();
+    std::string desc = data.value("desc", "");
+    std::string state = data.value("state", "");
+    int result = 0;
+    bool is_finished = false;
+    bool is_checking = false;
 
-    // 判断是否完成：
-    // 1. Result != 0 表示失败，自检结束
-    // 2. desc 包含 "完成" 表示成功完成
-    bool is_finished =
-        (result != 0) || (desc.find("完成") != std::string::npos);
+    // 处理进度通知格式 (NoticeType)
+    if (j.contains("NoticeType")) {
+      int notice_type = j["NoticeType"].get<int>();
+      if (notice_type != 1010) {
+        return; // 只处理自检相关的通知
+      }
 
-    LOG(INFO) << "SelfCheck progress: pileId=" << pile_id << " desc=" << desc
-              << " result=" << result << " finished=" << is_finished;
+      // 根据 state 判断状态
+      if (state == "CMD_SENT") {
+        // 指令已下发，等待启动
+        is_checking = false;
+        is_finished = false;
+      } else if (state == "STARTED") {
+        // 自检启动成功
+        is_checking = true;
+        is_finished = false;
+        result = data.value("result", 0);
+      } else if (state == "COMPLETED") {
+        // 自检完成
+        is_checking = false;
+        is_finished = true;
+        result = data.value("result", 0);
+      } else {
+        LOG(WARNING) << "Unknown state: " << state;
+        return;
+      }
 
-    // 发射信号到 QML
-    emit checkStatusUpdated(QString::fromStdString(pile_id),
-                            QString::fromStdString(desc), result, is_finished);
+      LOG(INFO) << "SelfCheck progress: pileId=" << pile_id << " desc=" << desc
+                << " state=" << state << " result=" << result
+                << " checking=" << is_checking << " finished=" << is_finished;
+
+      // 发射进度更新信号
+      emit checkStatusUpdated(QString::fromStdString(pile_id),
+                              QString::fromStdString(desc), result, is_finished,
+                              is_checking);
+
+    }
+    // 处理最终结果格式 (ReqType)
+    else if (j.contains("ReqType") && j.contains("Result")) {
+      int req_type = j["ReqType"].get<int>();
+      if (req_type != 1010) {
+        return; // 只处理自检相关的请求
+      }
+
+      result = j["Result"].get<int>();
+      int success_count = data.value("successCount", 0);
+      int fail_count = data.value("failCount", 0);
+      int code = data.value("code", 0);
+
+      // 最终结果，自检已完成
+      is_checking = false;
+      is_finished = true;
+
+      LOG(INFO) << "SelfCheck final result: pileId=" << pile_id
+                << " result=" << result << " success=" << success_count
+                << " fail=" << fail_count << " code=" << code;
+
+      // 构建最终结果描述
+      std::string final_desc = "自检完成";
+      if (result == 0 && fail_count == 0) {
+        final_desc = "自检成功";
+      } else if (fail_count > 0) {
+        final_desc = "自检失败 (" + std::to_string(fail_count) + "项失败)";
+      }
+
+      // 发射最终结果信号
+      emit checkStatusUpdated(QString::fromStdString(pile_id),
+                              QString::fromStdString(final_desc), result,
+                              is_finished, is_checking);
+      emit checkResultReady(QString::fromStdString(pile_id), result,
+                            success_count, fail_count, code);
+
+    } else {
+      LOG(WARNING) << "Invalid message format, missing NoticeType or ReqType";
+      return;
+    }
 
   } catch (const nlohmann::json::exception &e) {
-    LOG(ERROR) << "Failed to parse self-check progress message: " << e.what()
+    LOG(ERROR) << "Failed to parse self-check message: " << e.what()
                << " message=" << message;
   } catch (const std::exception &e) {
-    LOG(ERROR) << "Error processing self-check progress: " << e.what();
+    LOG(ERROR) << "Error processing self-check message: " << e.what();
   }
 }
 

@@ -51,8 +51,6 @@ Page {
                             // 一次性设置不需要动态更新的属性
                             item.deviceId = model.equipNo
                             item.name = model.name
-                            item.deviceType = model.type
-                            
                             if (isPile) {
                                 item.ipAddress = model.ipAddr
                                 // item.checkProgress = ... // 需要 C++ 提供
@@ -89,6 +87,13 @@ Page {
                             target: cardLoader.item
                             property: "checking"
                             value: model.isChecking || false
+                            when: cardLoader.item !== null
+                        }
+
+                        Binding {
+                            target: cardLoader.item
+                            property: "lastCheck"
+                            value: model.lastCheckTime || ""
                             when: cardLoader.item !== null
                         }
 

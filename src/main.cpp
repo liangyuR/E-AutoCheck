@@ -16,6 +16,10 @@
 #include <glog/logging.h>
 #include <yaml-cpp/yaml.h>
 
+#include <chrono>
+#include <iomanip>
+#include <sstream>
+
 absl::Status InitClient() {
   try {
     // MySQL
@@ -99,16 +103,45 @@ int main(int argc, char *argv[]) {
                                check_manager);
 
   // 连接自检进度信号到设备管理器
-  QObject::connect(check_manager, &EAutoCheck::CheckManager::checkStatusUpdated,
+  QObject::connect(
+      check_manager, &EAutoCheck::CheckManager::checkStatusUpdated,
+      device_manager,
+      [device_manager](const QString &pileId, const QString &desc, int result,
+                       bool isFinished, bool isChecking) {
+        std::string equip_no = pileId.toStdString();
+        std::string desc_str = desc.toStdString();
+        device_manager->updateSelfCheckProgress(equip_no, desc_str, isChecking);
+      });
+
+  // 连接自检最终结果信号到设备管理器
+  QObject::connect(check_manager, &EAutoCheck::CheckManager::checkResultReady,
                    device_manager,
-                   [device_manager](const QString &pileId, const QString &desc,
-                                    int result, bool isFinished) {
+                   [device_manager](const QString &pileId, int result,
+                                    int successCount, int failCount, int code) {
                      std::string equip_no = pileId.toStdString();
-                     std::string desc_str = desc.toStdString();
-                     // isFinished 为 true 时，is_checking 应为 false
-                     bool is_checking = !isFinished;
-                     device_manager->updateSelfCheckProgress(equip_no, desc_str,
-                                                             is_checking);
+
+                     // 构建 SelfCheckResult
+                     device::SelfCheckResult check_result;
+                     check_result.last_check_result = result;
+                     check_result.success_count = successCount;
+                     check_result.fail_count = failCount;
+
+                     // 设置最后自检时间（使用当前时间）
+                     auto now = std::chrono::system_clock::now();
+                     auto time_t = std::chrono::system_clock::to_time_t(now);
+                     std::ostringstream oss;
+                     oss << std::put_time(std::gmtime(&time_t),
+                                          "%Y-%m-%d %H:%M:%S");
+                     check_result.last_check_time_str = oss.str();
+
+                     // 设置总体状态
+                     if (result == 0 && failCount == 0) {
+                       check_result.status = device::SelfCheckStatus::Passed;
+                     } else {
+                       check_result.status = device::SelfCheckStatus::Failed;
+                     }
+
+                     device_manager->updateSelfCheck(equip_no, check_result);
                    });
 
   QQuickStyle::setStyle("Material");

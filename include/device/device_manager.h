@@ -28,7 +28,8 @@ public:
     StatusRole,
     IsOnlineRole,
     StatusTextRole,
-    IsCheckingRole
+    IsCheckingRole,
+    LastCheckTimeRole
   };
 
   using DevicePtr = std::shared_ptr<ChargerBoxDevice>;
