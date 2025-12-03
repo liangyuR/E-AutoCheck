@@ -20,16 +20,15 @@ http:
   base_url: "http://localhost:8080"   # HTTP服务端基础URL
 
 rabbitmq:
-  host: "192.168.6.102"           # RabbitMQ服务器地址
+  host: "192.168.6.101"           # RabbitMQ服务器地址
   port: 5672                      # RabbitMQ端口
   username: "root"                # 用户名
   password: "viscalbarca23110675HH"  # 密码
   vhost: "/"                      # 虚拟主机
   exchange: "MuskEx"              # 交换机名称
-  queue_name: "auto_charge"       # 队列名
+  queue_name: "AutoCheck"       # 队列名
   req_queue: "%s.DataServer.req"  # 请求队列名
   resp_queue: "DataServer.%s.resp" # 响应队列名
-  pile_id: "0005002000224016"     # 桩ID
 
 rabbitmq_local:
   host: "127.0.0.1"               # RabbitMQ本地服务器地址
@@ -49,13 +48,13 @@ mysql:
     port: 3306
     user: root
     password: ciobadharua64340853NN
-    database: hcm5155261
+    database: hcms5155261
   ro:
     - host: 192.168.6.101
       port: 3306
       user: root
       password: ciobadharua64340853NN
-      database: hcm5155261
+      database: hcms5155261
     - host: 192.168.6.101
       port: 3306
       user: root
@@ -80,5 +79,5 @@ retry:
 behavior:
   read_from_replicas: true
   force_master_in_tx: true   # 当前实现无事务API，预留
-  timezone: UTC
+  timezone: "+00:00"
   slow_sql_ms: 200

@@ -7,32 +7,46 @@
 #include <vector>
 
 #include "device/charge_pipe_device.h"
-#include <QObject>
+#include <QAbstractListModel>
 #include <absl/status/status.h>
 
 namespace device {
 
-// 前置声明：你的 DbRow 类型来自哪儿，就按实际库改
-struct DbRow;
-
-// 设备管理器：负责持有和查询 ChargerBoxDevice
-class DeviceManager : public QObject {
+// 设备管理器：负责持有和查询 ChargerBoxDevice，同时作为 QML Model
+class DeviceManager : public QAbstractListModel {
   Q_OBJECT
 
 public:
+  enum DeviceRoles {
+    NameRole = Qt::UserRole + 1,
+    NameEnRole,
+    EquipNoRole,
+    StationNoRole,
+    TypeRole,
+    IpAddrRole,
+    GunCountRole,
+    StatusRole,
+    IsOnlineRole,
+    StatusTextRole,
+    IsCheckingRole
+  };
+
   using DevicePtr = std::shared_ptr<ChargerBoxDevice>;
 
-  DeviceManager(QObject *parent = nullptr) : QObject(parent) {}
-  ~DeviceManager() = default;
+  explicit DeviceManager(QObject *parent = nullptr);
+  ~DeviceManager() override = default;
 
   DeviceManager(const DeviceManager &) = delete;
   DeviceManager &operator=(const DeviceManager &) = delete;
 
+  // ============ QAbstractListModel 接口 ============
+  int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+  QVariant data(const QModelIndex &index,
+                int role = Qt::DisplayRole) const override;
+  QHash<int, QByteArray> roleNames() const override;
+
   // ============ 设备增删查 ============
   // 从属性创建一台设备并接管其生命周期。
-  // 如果 equip_no 已存在，可以选择：
-  //  - 覆盖旧设备（当前实现这么做），或
-  //  - 忽略 / 抛异常（可根据需要调整）。
   DevicePtr addDevice(ChargerBoxAttributes attrs);
 
   // 按业务 ID（equip_no）获取设备，找不到返回 nullptr
@@ -45,18 +59,17 @@ public:
   std::vector<DevicePtr> allDevices() const;
 
   // ============ 状态更新便捷接口 ============
-
-  // 根据 equip_no 更新运行状态 / 自检结果
-  // 如果设备不存在，当前选择静默忽略，也可以改成返回 bool 或抛异常
   void updateStatus(const std::string &equip_no, const DeviceStatus &status);
   void updateSelfCheck(const std::string &equip_no,
                        const SelfCheckResult &result);
+  void updateSelfCheckProgress(const std::string &equip_no,
+                               const std::string &desc, bool is_checking);
 
 private:
-  using DeviceMap = std::unordered_map<std::string, DevicePtr>; // key: equip_no
-
   mutable std::mutex mutex_;
-  DeviceMap devices_;
+  // 维护两个容器：list 用于 Model 索引访问，map 用于 ID 快速查找
+  std::vector<DevicePtr> device_list_;
+  std::unordered_map<std::string, DevicePtr> device_map_; // key: equip_no
 };
 
 } // namespace device

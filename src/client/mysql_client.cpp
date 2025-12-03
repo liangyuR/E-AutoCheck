@@ -173,6 +173,11 @@ void MySqlClient::Init(const Config &cfg) {
   }
 }
 
+void MySqlClient::Shutdown() {
+  std::lock_guard<std::mutex> lock(instance_mutex_);
+  instance_.reset();
+}
+
 MySqlClient *MySqlClient::GetInstance() {
   std::lock_guard<std::mutex> lock(instance_mutex_);
   if (!instance_) {

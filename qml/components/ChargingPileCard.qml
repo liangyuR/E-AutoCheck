@@ -29,7 +29,7 @@ Control {
     signal cardLongPressed(string deviceId)
 
     implicitWidth: 340
-    implicitHeight: 240
+    implicitHeight: 300
     padding: 0
 
     // 长按检测
@@ -47,7 +47,7 @@ Control {
         }
         
         onPressed: {
-            mouse.accepted = false
+            // mouse.accepted = false
             longPressTimer.start()
         }
         
@@ -390,7 +390,17 @@ Control {
             Layout.fillWidth: true
             Layout.preferredHeight: 60
             color: AppTheme.backgroundTertiary
+            
+            // 底部左右圆角
             radius: AppLayout.radiusLarge
+            
+            // 遮挡上半部分圆角，使之与上面内容无缝连接
+            Rectangle {
+                width: parent.width
+                height: parent.radius
+                color: parent.color
+                anchors.top: parent.top
+            }
 
             RowLayout {
                 anchors.fill: parent

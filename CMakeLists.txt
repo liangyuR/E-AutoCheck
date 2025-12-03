@@ -67,6 +67,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     yaml-cpp                    # yaml-cpp，YAML 解析库
     absl::base                  # Abseil 基础组件库
     absl::status                # Abseil Status
+    absl::statusor              # Abseil StatusOr
     absl::str_format            # Abseil StrFormat
     absl::strings               # Abseil Strings
     redis++::redis++_static     # redis-plus-plus，C++ Redis 客户端（静态库）

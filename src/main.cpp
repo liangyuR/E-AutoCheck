@@ -3,6 +3,7 @@
 #include <QQmlEngine>
 #include <QQuickStyle>
 
+#include "check_manager.h"
 #include "client/http_client.h"
 #include "client/mysql_client.h"
 #include "client/rabbitmq_client.h"
@@ -21,10 +22,10 @@ absl::Status InitClient() {
     auto mysqlConfig = db::Config::FromYamlFile("config/base.yaml");
     db::MySqlClient::Init(mysqlConfig);
 
-    // // RabbitMQ
-    // auto rabbitConfig =
-    //     client::RabbitMqConfig::FromYamlFile("config/base.yaml");
-    // client::RabbitMqClient::Init(rabbitConfig);
+    // RabbitMQ
+    auto rabbitConfig =
+        client::RabbitMqConfig::FromYamlFile("config/base.yaml");
+    client::RabbitMqClient::Init(rabbitConfig);
 
     // // Redis
     // YAML::Node root = YAML::LoadFile("config/base.yaml");
@@ -44,12 +45,18 @@ absl::Status InitClient() {
   return absl::OkStatus();
 }
 
-void AsyncLoadDevices(device::DeviceManager *device_manager) {
-  std::thread([device_manager]() {
+void AsyncLoadDevices(device::DeviceManager *device_manager,
+                      EAutoCheck::CheckManager *check_manager) {
+  std::thread([device_manager, check_manager]() {
     LOG(INFO) << "开始后台加载...";
 
     if (auto status = InitClient(); !status.ok()) {
       LOG(ERROR) << "初始化客户端失败: " << status.message();
+      return;
+    }
+
+    if (auto status = check_manager->Subscribe(); !status.ok()) {
+      LOG(ERROR) << "订阅自检消息失败: " << status.message();
       return;
     }
 
@@ -64,6 +71,8 @@ void AsyncLoadDevices(device::DeviceManager *device_manager) {
       // 回到主线程添加设备，确保线程安全和 UI 更新
       QMetaObject::invokeMethod(device_manager, [device_manager, devices]() {
         for (const auto &device : devices) {
+          LOG(INFO) << "添加设备: name=" << device.name
+                    << ", id=" << device.equip_no;
           device_manager->addDevice(device);
         }
         LOG(INFO) << "已将设备添加到管理器";
@@ -85,13 +94,32 @@ int main(int argc, char *argv[]) {
   qmlRegisterSingletonInstance("EAutoCheck", 1, 0, "DeviceManager",
                                device_manager);
 
+  auto *check_manager = new EAutoCheck::CheckManager(&app);
+  qmlRegisterSingletonInstance("EAutoCheck", 1, 0, "CheckManager",
+                               check_manager);
+
+  // 连接自检进度信号到设备管理器
+  QObject::connect(check_manager, &EAutoCheck::CheckManager::checkStatusUpdated,
+                   device_manager,
+                   [device_manager](const QString &pileId, const QString &desc,
+                                    int result, bool isFinished) {
+                     std::string equip_no = pileId.toStdString();
+                     std::string desc_str = desc.toStdString();
+                     // isFinished 为 true 时，is_checking 应为 false
+                     bool is_checking = !isFinished;
+                     device_manager->updateSelfCheckProgress(equip_no, desc_str,
+                                                             is_checking);
+                   });
+
   QQuickStyle::setStyle("Material");
   engine.loadFromModule("GUI", "Main");
 
   if (engine.rootObjects().isEmpty())
     return -1;
 
-  AsyncLoadDevices(device_manager);
+  AsyncLoadDevices(device_manager, check_manager);
 
-  return QGuiApplication::exec();
+  int ret = QGuiApplication::exec();
+  db::MySqlClient::Shutdown();
+  return ret;
 }

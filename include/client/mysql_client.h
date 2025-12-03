@@ -100,6 +100,7 @@ struct Config {
 class MySqlClient {
 public:
   static void Init(const Config &cfg);
+  static void Shutdown();
   static MySqlClient *GetInstance();
 
 private:

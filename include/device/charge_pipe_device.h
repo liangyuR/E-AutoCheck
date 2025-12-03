@@ -52,14 +52,32 @@ public:
   void UpdateStatus(const DeviceStatus &s) {}       // TODO
   void UpdateSelfCheck(const SelfCheckResult &r) {} // TODO
 
+  // 更新自检进度（由 SelfCheckManager 通过 DeviceManager 调用）
+  void UpdateSelfCheckProgress(const std::string &desc, bool is_checking) {
+    current_self_check_desc_ = desc;
+    is_self_checking_ = is_checking;
+  }
+
+  // 获取当前自检状态
+  const std::string &CurrentSelfCheckDesc() const noexcept {
+    return current_self_check_desc_;
+  }
+  bool IsSelfChecking() const noexcept { return is_self_checking_; }
+
   // 一些便捷判断接口（具体逻辑在 .cpp 中实现）
-  bool IsOnline() const;
-  bool HasCriticalFault() const;
+  bool IsOnline() const {
+    return true; // TODO
+  }
+  bool HasCriticalFault() const {
+    return false; // TODO
+  }
 
 private:
   ChargerBoxAttributes attrs_;
   DeviceStatus status_{};             // 默认 Unknown/Offline 等
   SelfCheckResult last_self_check_{}; // 默认空结果
+  std::string current_self_check_desc_; // 当前自检进度描述
+  bool is_self_checking_ = false;      // 是否正在自检
 };
 
 } // namespace device

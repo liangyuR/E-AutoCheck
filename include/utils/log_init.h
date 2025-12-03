@@ -124,7 +124,8 @@ absl::Status InitLogging() {
   // 一些构建选项下才有彩色与stderr颜色控制
   FLAGS_colorlogtostderr = true;
 #endif
-  google::SetStderrLogging(google::GLOG_WARNING); // WARNING+ 同时打到stderr
+  // google::SetStderrLogging(google::GLOG_WARNING); // WARNING+ 同时打到stderr
+  FLAGS_alsologtostderr = true; // 所有日志同时输出到 stderr
 
   // 6) verbose（支持 VLOG）
   // 优先 ECA_V，然后兼容 GLOG_v；默认 0

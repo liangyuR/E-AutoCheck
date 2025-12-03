@@ -277,6 +277,11 @@ void RabbitMqClient::Disconnect() {
 void RabbitMqClient::Publish(const std::string &routing_key,
                              const std::string &payload) {
   try {
+    if (!Connect()) {
+      LOG(ERROR) << "Failed to connect to RabbitMQ";
+      return;
+    }
+
     if (channel_ == nullptr) {
       LOG(ERROR) << "Channel not initialized";
       return;
@@ -298,6 +303,11 @@ void RabbitMqClient::Subscribe(
     const std::string &queue_name,
     std::function<void(const std::string &)> handler) {
   try {
+    if (!Connect()) {
+      LOG(ERROR) << "Failed to connect to RabbitMQ";
+      return;
+    }
+
     if (channel_ == nullptr) {
       LOG(ERROR) << "Channel not initialized";
       return;
@@ -305,13 +315,31 @@ void RabbitMqClient::Subscribe(
 
     message_handler_ = std::move(handler);
 
+    // Declare queue if it doesn't exist
+    try {
+      channel_->declareQueue(queue_name, AMQP::durable);
+      LOG(INFO) << "Declared queue: " << queue_name;
+    } catch (const std::exception &e) {
+      LOG(WARNING) << "Failed to declare durable queue, trying non-durable: "
+                   << e.what();
+      channel_->declareQueue(queue_name);
+      LOG(INFO) << "Declared non-durable queue: " << queue_name;
+    }
+
+    // Bind queue to exchange if exchange is specified
+    if (!exchange_.empty()) {
+      // For topic exchange, use queue name as routing key pattern
+      channel_->bindQueue(exchange_, queue_name, queue_name);
+      LOG(INFO) << "Bound queue " << queue_name << " to exchange " << exchange_;
+    }
+
     // Start consuming from queue
     RabbitMqClient *self = this;
     channel_->consume(queue_name)
         .onReceived([self](const AMQP::Message &message, uint64_t deliveryTag,
                            bool redelivered) {
           std::string payload(message.body(), message.bodySize());
-          LOG(INFO) << "Received message: " << payload;
+          DLOG(INFO) << "Received message: " << payload;
 
           if (self->message_handler_) {
             self->message_handler_(payload);
