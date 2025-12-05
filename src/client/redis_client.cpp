@@ -1,6 +1,7 @@
 #include "client/redis_client.h"
 
 #include <chrono>
+#include <iterator>
 #include <memory>
 
 namespace client {
@@ -148,6 +149,24 @@ std::optional<std::string> RedisClient::HGet(const std::string &key,
   } catch (const sw::redis::Error &err) {
     LOG(ERROR) << "[RedisClient] Redis HGET failed for key '" << key
                << "' field '" << field << "': " << err.what();
+    return std::nullopt;
+  }
+}
+
+std::optional<std::unordered_map<std::string, std::string>>
+RedisClient::HGetAll(const std::string &key) const {
+  if (!connected_.load()) {
+    LOG(ERROR) << "[RedisClient] Redis not connected";
+    return std::nullopt;
+  }
+
+  try {
+    std::unordered_map<std::string, std::string> values;
+    redis_->hgetall(key, std::inserter(values, values.end()));
+    return values;
+  } catch (const sw::redis::Error &err) {
+    LOG(ERROR) << "[RedisClient] Redis HGETALL failed for key '" << key
+               << "': " << err.what();
     return std::nullopt;
   }
 }

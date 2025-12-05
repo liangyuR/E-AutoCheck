@@ -111,8 +111,8 @@ struct SelfCheckResult {
 
 // 交流接触器
 struct ACContactorStatus {
-  bool contactor1_stuck = false;  // 交流接触器 1 粘连
-  bool contactor1_refuse = false; // 交流接触器 1 拒动
+  bool contactor1_stuck = false;  // 交流接触器粘连
+  bool contactor1_refuse = false; // 交流接触器拒动
 
   friend std::ostream &operator<<(std::ostream &output_stream,
                                   const ACContactorStatus &attr) {

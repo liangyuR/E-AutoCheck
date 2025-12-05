@@ -6,12 +6,16 @@
 #include <absl/status/status.h>
 #include <glog/logging.h>
 #include <nlohmann/json.hpp>
+#include <array>
 #include <random>
+#include <unordered_map>
+#include <vector>
 
 #include "client/mysql_client.h"
 #include "client/rabbitmq_client.h"
 #include "client/redis_client.h"
 #include "device/device_manager.h"
+#include "device/device_object.h"
 
 namespace EAutoCheck {
 CheckManager::CheckManager(device::DeviceManager *device_manager,
@@ -191,6 +195,274 @@ void CheckManager::recvMsg(const std::string &message) {
   } catch (const std::exception &e) {
     LOG(ERROR) << "Error processing self-check message: " << e.what();
   }
+}
+
+absl::StatusOr<device::CCUAttributes>
+CheckManager::getResultFromRedis(const std::string &device_id) {
+  if (device_manager_ == nullptr) {
+    return absl::InternalError("DeviceManager is not initialized");
+  }
+
+  auto device = device_manager_->getDeviceByEquipNo(device_id);
+  if (!device) {
+    return absl::NotFoundError("Device not found: " + device_id);
+  }
+
+  const std::string type = device->Attributes().type;
+  if (type != "PILE" && type != "Pile") {
+    LOG(WARNING) << "Unsupported device type for Redis self-check: " << type;
+    return absl::UnimplementedError("Device type not supported");
+  }
+
+  auto keys_or = getRedisKey(device_id);
+  if (!keys_or.ok()) {
+    return keys_or.status();
+  }
+
+  auto *redis = client::RedisClient::GetInstance();
+  if (redis == nullptr || !redis->IsConnected()) {
+    LOG(ERROR) << "Redis client is not ready, cannot fetch result for "
+               << device_id;
+    return absl::InternalError("Redis client is not ready");
+  }
+
+  device::CCUAttributes attributes;
+  bool parsed = false;
+
+  for (const auto &module_key : keys_or.value()) {
+    if (module_key.find(":CCU#") == std::string::npos) {
+      LOG(WARNING) << "Skip non-CCU module key: " << module_key;
+      continue;
+    }
+
+    auto hash_opt = redis->HGetAll(module_key);
+    if (!hash_opt) {
+      LOG(ERROR) << "Failed to HGETALL for key: " << module_key;
+      return absl::InternalError("Failed to fetch Redis hash");
+    }
+
+    if (hash_opt->empty()) {
+      LOG(WARNING) << "Redis hash is empty for key: " << module_key;
+      return absl::NotFoundError("Redis hash empty");
+    }
+
+    std::array<bool, 32> seen{};
+    for (const auto &item : *hash_opt) {
+      const std::string &field = item.first;
+      const std::string &value_str = item.second;
+
+      auto delimiter_pos = field.find(';');
+      if (delimiter_pos == std::string::npos) {
+        LOG(WARNING) << "Field missing index delimiter: " << field;
+        continue;
+      }
+
+      int index = -1;
+      try {
+        index = std::stoi(field.substr(0, delimiter_pos));
+      } catch (const std::exception &e) {
+        LOG(WARNING) << "Failed to parse field index for '" << field
+                     << "': " << e.what();
+        continue;
+      }
+
+      if (index < 0 || index >= static_cast<int>(seen.size())) {
+        LOG(WARNING) << "Field index out of range: " << index << " (" << field
+                     << ")";
+        continue;
+      }
+
+      int numeric_value = 0;
+      try {
+        numeric_value = std::stoi(value_str);
+      } catch (const std::exception &e) {
+        LOG(WARNING) << "Failed to parse value for field '" << field
+                     << "': " << e.what();
+        continue;
+      }
+
+      bool status = false;
+      if (numeric_value == 1) {
+        status = true;
+      } else if (numeric_value == 2) {
+        status = false;
+      } else {
+        LOG(WARNING) << "Unknown field value " << numeric_value << " for field "
+                     << field;
+        continue;
+      }
+
+      seen[index] = true;
+      switch (index) {
+      case 0:
+        attributes.ac_contactor_1.contactor1_refuse = status;
+        break;
+      case 1:
+        attributes.ac_contactor_1.contactor1_stuck = status;
+        break;
+      case 2:
+        attributes.ac_contactor_2.contactor1_refuse = status;
+        break;
+      case 3:
+        attributes.ac_contactor_2.contactor1_stuck = status;
+        break;
+      case 4:
+        attributes.parallel_contactor.positive_refuse = status;
+        break;
+      case 5:
+        attributes.parallel_contactor.positive_stuck = status;
+        break;
+      case 6:
+        attributes.parallel_contactor.negative_refuse = status;
+        break;
+      case 7:
+        attributes.parallel_contactor.negative_stuck = status;
+        break;
+      case 8:
+        attributes.fan_1.stopped = status;
+        break;
+      case 9:
+        attributes.fan_1.rotating = status;
+        break;
+      case 10:
+        attributes.fan_2.stopped = status;
+        break;
+      case 11:
+        attributes.fan_2.rotating = status;
+        break;
+      case 12:
+        attributes.fan_3.stopped = status;
+        break;
+      case 13:
+        attributes.fan_3.rotating = status;
+        break;
+      case 14:
+        attributes.fan_4.stopped = status;
+        break;
+      case 15:
+        attributes.fan_4.rotating = status;
+        break;
+      case 16:
+        attributes.gun_a.positive_contactor_refuse = status;
+        break;
+      case 17:
+        attributes.gun_a.positive_contactor_stuck = status;
+        break;
+      case 18:
+        attributes.gun_a.negative_contactor_refuse = status;
+        break;
+      case 19:
+        attributes.gun_a.negative_contactor_stuck = status;
+        break;
+      case 20:
+        attributes.gun_a.unlocked = status;
+        break;
+      case 21:
+        attributes.gun_a.locked = status;
+        break;
+      case 22:
+        attributes.gun_a.aux_power_12v = status;
+        break;
+      case 23:
+        attributes.gun_a.aux_power_24v = status;
+        break;
+      case 24:
+        attributes.gun_b.positive_contactor_refuse = status;
+        break;
+      case 25:
+        attributes.gun_b.positive_contactor_stuck = status;
+        break;
+      case 26:
+        attributes.gun_b.negative_contactor_refuse = status;
+        break;
+      case 27:
+        attributes.gun_b.negative_contactor_stuck = status;
+        break;
+      case 28:
+        attributes.gun_b.unlocked = status;
+        break;
+      case 29:
+        attributes.gun_b.locked = status;
+        break;
+      case 30:
+        attributes.gun_b.aux_power_12v = status;
+        break;
+      case 31:
+        attributes.gun_b.aux_power_24v = status;
+        break;
+      default:
+        LOG(WARNING) << "Unhandled field index: " << index;
+        break;
+      }
+    }
+
+    for (int expected = 0; expected < 32; ++expected) {
+      if (!seen[expected]) {
+        LOG(WARNING) << "Missing field index " << expected
+                     << " in Redis hash for " << module_key;
+      }
+    }
+
+    parsed = true;
+    break;
+  }
+
+  if (!parsed) {
+    return absl::NotFoundError("No CCU module found in Redis");
+  }
+
+  return attributes;
+}
+
+void CheckManager::saveResultToMysql(const std::string &device_id,
+                                     const std::string &result) {}
+
+absl::StatusOr<std::vector<std::string>>
+CheckManager::getRedisKey(const std::string &device_id) {
+  // eg: selfcheck:PILE#0817913362940806:CCU#9
+  // selfcheck:{device_type}#{device_id}:{module_name}#{module_id}
+
+  auto device = device_manager_->getDeviceByEquipNo(device_id);
+  if (!device) {
+    return absl::NotFoundError("Device not found: " + device_id);
+  }
+  const auto type = device->Attributes().type;
+
+  const auto modules_key = "selfcheck:" + type + "#" + device_id;
+
+  auto *redis = client::RedisClient::GetInstance();
+  if (redis == nullptr || !redis->IsConnected()) {
+    LOG(ERROR) << "Redis client is not ready, cannot fetch result for "
+               << device_id;
+    return absl::InternalError("Redis client is not ready");
+  }
+
+  auto modules_opt = redis->Get(modules_key);
+  if (!modules_opt) {
+    LOG(WARNING) << "No modules found in Redis for key: " << modules_key;
+    return absl::NotFoundError("No modules found in Redis");
+  }
+
+  std::vector<std::string> result;
+  try {
+    auto json_modules = nlohmann::json::parse(*modules_opt);
+    if (json_modules.is_array()) {
+      for (const auto &item : json_modules) {
+        if (item.is_string()) {
+          result.push_back(modules_key + ":" + item.get<std::string>());
+        }
+      }
+    } else {
+      // Fallback if it's not an array (e.g. single string?)
+      // But requirement says "list", implying array.
+      LOG(WARNING) << "Modules data is not an array for key: " << modules_key;
+    }
+  } catch (const std::exception &e) {
+    LOG(ERROR) << "Failed to parse modules JSON: " << e.what();
+    return absl::InternalError("Failed to parse modules JSON");
+  }
+
+  return result;
 }
 
 absl::Status CheckManager::processAndSaveResult(const std::string &device_id) {

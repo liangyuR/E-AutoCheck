@@ -4,7 +4,10 @@
 #include <QObject>
 #include <QString>
 #include <absl/status/status.h>
+#include <absl/status/statusor.h>
+#include <device/device_object.h>
 #include <qtmetamacros.h>
+#include <vector>
 
 namespace device {
 class DeviceManager;
@@ -28,6 +31,13 @@ private:
   void recvMsg(const std::string &message);
 
   absl::Status processAndSaveResult(const std::string &device_id);
+
+  absl::StatusOr<device::CCUAttributes>
+  getResultFromRedis(const std::string &device_id);
+  void saveResultToMysql(const std::string &device_id,
+                         const std::string &result);
+  absl::StatusOr<std::vector<std::string>>
+  getRedisKey(const std::string &device_id);
 
   struct PendingCheck {
     QString deviceId;
