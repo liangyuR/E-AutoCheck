@@ -35,6 +35,7 @@ absl::Status InitClient() {
 
   YAML::Node root = YAML::LoadFile("config/base.yaml");
   client::RedisClient::Init(root["redis"]);
+  client::RedisClient::GetInstance()->Connect();
 
   return absl::OkStatus();
 }

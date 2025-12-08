@@ -210,6 +210,9 @@ struct CCUAttributes {
   }
 };
 
+constexpr std::string_view kDeviceTypePILE = "PILE";
+constexpr std::string_view kDeviceTypeSTACK = "STACK";
+
 struct ChargerBoxAttributes {
   int db_id = 0;
 

@@ -4,9 +4,9 @@
 #include <QTimer>
 #include <QUuid>
 #include <absl/status/status.h>
+#include <array>
 #include <glog/logging.h>
 #include <nlohmann/json.hpp>
-#include <array>
 #include <random>
 #include <unordered_map>
 #include <vector>
@@ -45,6 +45,8 @@ absl::Status CheckManager::CheckDevice(const QString &equip_no) {
   if (rabbit_client == nullptr) {
     return absl::InternalError("Failed to get RabbitMQ client");
   }
+
+  (void)getResultFromRedis(equip_no.toStdString());
 
   LOG(INFO) << "设备 " << equip_no.toStdString() << " 自检开始";
 
@@ -197,7 +199,7 @@ void CheckManager::recvMsg(const std::string &message) {
   }
 }
 
-absl::StatusOr<device::CCUAttributes>
+absl::StatusOr<std::vector<device::CCUAttributes>>
 CheckManager::getResultFromRedis(const std::string &device_id) {
   if (device_manager_ == nullptr) {
     return absl::InternalError("DeviceManager is not initialized");
@@ -209,7 +211,7 @@ CheckManager::getResultFromRedis(const std::string &device_id) {
   }
 
   const std::string type = device->Attributes().type;
-  if (type != "PILE" && type != "Pile") {
+  if (type != device::kDeviceTypePILE) {
     LOG(WARNING) << "Unsupported device type for Redis self-check: " << type;
     return absl::UnimplementedError("Device type not supported");
   }
@@ -226,14 +228,17 @@ CheckManager::getResultFromRedis(const std::string &device_id) {
     return absl::InternalError("Redis client is not ready");
   }
 
-  device::CCUAttributes attributes;
+  std::vector<device::CCUAttributes> ccu_attributes;
   bool parsed = false;
 
   for (const auto &module_key : keys_or.value()) {
+    DLOG(INFO) << "Processing module key: " << module_key;
+
     if (module_key.find(":CCU#") == std::string::npos) {
       LOG(WARNING) << "Skip non-CCU module key: " << module_key;
       continue;
     }
+    device::CCUAttributes attributes;
 
     auto hash_opt = redis->HGetAll(module_key);
     if (!hash_opt) {
@@ -403,15 +408,15 @@ CheckManager::getResultFromRedis(const std::string &device_id) {
       }
     }
 
+    ccu_attributes.push_back(attributes);
     parsed = true;
-    break;
   }
 
   if (!parsed) {
     return absl::NotFoundError("No CCU module found in Redis");
   }
 
-  return attributes;
+  return ccu_attributes;
 }
 
 void CheckManager::saveResultToMysql(const std::string &device_id,
@@ -437,32 +442,34 @@ CheckManager::getRedisKey(const std::string &device_id) {
     return absl::InternalError("Redis client is not ready");
   }
 
-  auto modules_opt = redis->Get(modules_key);
+  auto modules_opt = redis->HGetAll(modules_key);
   if (!modules_opt) {
     LOG(WARNING) << "No modules found in Redis for key: " << modules_key;
     return absl::NotFoundError("No modules found in Redis");
   }
 
   std::vector<std::string> result;
-  try {
-    auto json_modules = nlohmann::json::parse(*modules_opt);
-    if (json_modules.is_array()) {
-      for (const auto &item : json_modules) {
-        if (item.is_string()) {
-          result.push_back(modules_key + ":" + item.get<std::string>());
-        }
-      }
-    } else {
-      // Fallback if it's not an array (e.g. single string?)
-      // But requirement says "list", implying array.
-      LOG(WARNING) << "Modules data is not an array for key: " << modules_key;
-    }
-  } catch (const std::exception &e) {
-    LOG(ERROR) << "Failed to parse modules JSON: " << e.what();
-    return absl::InternalError("Failed to parse modules JSON");
-  }
-
   return result;
+  // try {
+  //   auto json_modules = nlohmann::json::parse(*modules_opt);
+  //   if (json_modules.is_array()) {
+  //     for (const auto &item : json_modules) {
+  //       if (item.is_string()) {
+  //         result.push_back(modules_key + ":" + item.get<std::string>());
+  //       }
+  //     }
+  //   } else {
+  //     // Fallback if it's not an array (e.g. single string?)
+  //     // But requirement says "list", implying array.
+  //     LOG(WARNING) << "Modules data is not an array for key: " <<
+  //     modules_key;
+  //   }
+  // } catch (const std::exception &e) {
+  //   LOG(ERROR) << "Failed to parse modules JSON: " << e.what();
+  //   return absl::InternalError("Failed to parse modules JSON");
+  // }
+
+  // return result;
 }
 
 absl::Status CheckManager::processAndSaveResult(const std::string &device_id) {
@@ -549,9 +556,8 @@ absl::Status CheckManager::processAndSaveResult(const std::string &device_id) {
     LOG(ERROR) << "Failed to save check result to MySQL: "
                << db_res.status().ToString();
     return db_res.status();
-  } else {
-    LOG(INFO) << "Successfully saved check result for " << device_id;
   }
+  LOG(INFO) << "Successfully saved check result for " << device_id;
 
   return absl::OkStatus();
 }

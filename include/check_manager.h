@@ -32,7 +32,7 @@ private:
 
   absl::Status processAndSaveResult(const std::string &device_id);
 
-  absl::StatusOr<device::CCUAttributes>
+  absl::StatusOr<std::vector<device::CCUAttributes>>
   getResultFromRedis(const std::string &device_id);
   void saveResultToMysql(const std::string &device_id,
                          const std::string &result);
