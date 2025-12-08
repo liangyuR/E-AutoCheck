@@ -10,6 +10,7 @@
 #include <sw/redis++/redis++.h>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 #include <yaml-cpp/yaml.h>
 
 namespace client {
@@ -49,6 +50,11 @@ public:
                                   const std::string &field) const;
   std::optional<std::unordered_map<std::string, std::string>>
   HGetAll(const std::string &key) const;
+
+  std::vector<std::string> Scan(const std::string &pattern,
+                                std::size_t limit = 100) const;
+
+  std::vector<std::string> Keys(const std::string &pattern) const;
 
 private:
   explicit RedisClient(const YAML::Node &redis_config);

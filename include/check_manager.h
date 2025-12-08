@@ -34,8 +34,11 @@ private:
 
   absl::StatusOr<std::vector<device::CCUAttributes>>
   getResultFromRedis(const std::string &device_id);
-  void saveResultToMysql(const std::string &device_id,
-                         const std::string &result);
+
+  absl::Status saveResultToMysql(const std::string &device_id);
+
+  // eg: selfcheck:PILE#0817913362940806:CCU#9
+  // selfcheck:{device_type}#{device_id}:{module_name}#{module_id}
   absl::StatusOr<std::vector<std::string>>
   getRedisKey(const std::string &device_id);
 

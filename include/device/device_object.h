@@ -182,6 +182,7 @@ struct GunStatus {
 
 // CCU 属性结构体
 struct CCUAttributes {
+  int index = 0;
 
   ACContactorStatus ac_contactor_1;
   ACContactorStatus ac_contactor_2;
