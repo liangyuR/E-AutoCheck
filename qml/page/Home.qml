@@ -10,7 +10,9 @@ import EAutoCheck 1.0
 Page {
     id: page
     title: qsTr("设备总览")
-    
+
+    signal detailPageRequested(string deviceId)
+
     background: Rectangle {
         color: AppTheme.backgroundPrimary
     }
@@ -97,17 +99,18 @@ Page {
 
                         Connections {
                             target: cardLoader.item
-                            function onSelfCheckRequested(id) {
-                                // 调用 C++ 接口
-                                if (typeof CheckManager !== "undefined") {
-                                     CheckManager.CheckDevice(id)
-                                } else {
-                                     console.warn("CheckManager not registered!")
+
+                            function onSelfCheckRequested(deviceId) {
+                                if (typeof CheckManager === "undefined") {
+                                    console.warn("CheckManager not registered!")
+                                    return
                                 }
+                                CheckManager.CheckDevice(deviceId)
                             }
                             
-                            function onCardLongPressed(id) {
-                                console.log("Long pressed:", id)
+                            function onCardLongPressed(deviceId) {
+                                console.log("Long pressed:", deviceId)
+                                detailPageRequested(deviceId)
                             }
                         }
                     }

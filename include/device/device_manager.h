@@ -12,6 +12,8 @@
 
 namespace device {
 
+// TODO(@liangyu) 这个类其实是 DeviceModel
+
 // 设备管理器：负责持有和查询 ChargerBoxDevice，同时作为 QML Model
 class DeviceManager : public QAbstractListModel {
   Q_OBJECT

@@ -184,6 +184,11 @@ struct GunStatus {
 struct CCUAttributes {
   int index = 0;
 
+  // 设备元信息（同一个记录的所有 CCU 共享）
+  std::string device_id;       // 设备ID
+  std::string device_type;     // 设备类型，例如 PILE / STACK
+  std::string last_check_time; // 最近检查时间字符串
+
   ACContactorStatus ac_contactor_1;
   ACContactorStatus ac_contactor_2;
 

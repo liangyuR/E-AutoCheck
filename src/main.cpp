@@ -4,13 +4,15 @@
 #include <QQuickStyle>
 
 #include "check_manager.h"
-#include "client/http_client.h"
+// #include "client/http_client.h"
 #include "client/mysql_client.h"
 #include "client/rabbitmq_client.h"
 #include "client/redis_client.h"
 #include "db/migration.h"
 #include "device/device_manager.h"
 #include "device/device_repo.h"
+#include "model/history_model.h"
+#include "model/pile_model.h"
 #include "utils/log_init.h"
 
 #include <absl/status/status.h>
@@ -86,6 +88,13 @@ int main(int argc, char *argv[]) {
   auto *check_manager = new EAutoCheck::CheckManager(device_manager, &app);
   qmlRegisterSingletonInstance("EAutoCheck", 1, 0, "CheckManager",
                                check_manager);
+
+  auto *history_model = new qml_model::HistoryModel(&app);
+  qmlRegisterSingletonInstance("EAutoCheck", 1, 0, "HistoryModel",
+                               history_model);
+
+  auto *pile_model = new qml_model::PileModel(&app);
+  qmlRegisterSingletonInstance("EAutoCheck", 1, 0, "PileModel", pile_model);
 
   QQuickStyle::setStyle("Material");
   engine.loadFromModule("GUI", "Main");

@@ -38,9 +38,13 @@ qt_add_qml_module(${PROJECT_NAME}
         qml/Main.qml
 
         qml/page/Home.qml
+        qml/page/Detial.qml
+        qml/page/HistoryPage.qml
         
         qml/components/DeviceCard.qml
         qml/components/ChargingPileCard.qml
+        qml/components/CCUDetail.qml
+        qml/components/StatusRow.qml
 
         qml/style/AppLayout.qml
         qml/style/AppFont.qml

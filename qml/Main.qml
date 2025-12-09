@@ -75,10 +75,10 @@ ApplicationWindow {
                                 navListView.currentIndex = index;
                                 switch (model.page) {
                                 case "homePage":
-                                    stackView.replace(homePage);
+                                    mainStackView.replace(homePage);
                                     break;
                                 case "settingsPage":
-                                    stackView.replace(settingsPage);
+                                    mainStackView.replace(settingsPage);
                                     break;
                                 }
                             }
@@ -126,7 +126,7 @@ ApplicationWindow {
 
             // 右侧内容区域
             StackView {
-                id: stackView
+                id: mainStackView
 
                 Layout.fillHeight: true
                 Layout.fillWidth: true
@@ -156,6 +156,57 @@ ApplicationWindow {
     Component {
         id: homePage
         Home {
+          id: homeRoot
+          Connections {
+            target: homeRoot
+            function onDetailPageRequested(deviceId) {
+              console.log("触发切换到详细页面，当前设备ID：", deviceId)
+              mainStackView.replace(detialPage, {
+                deviceId: deviceId,
+                detailComponent: ccuComponent
+              })
+            }
+          }
+        }
+    }
+
+    Component {
+        id: detialPage
+        Detial {
+            id: detialRoot
+            Connections {
+                target: detialRoot
+                function onBackRequested() {
+                    console.log("触发返回主页")
+                    mainStackView.replace(homePage)
+                }
+                function onHistoryRequested(deviceId) {
+                    console.log("进入历史页面，设备ID：", deviceId)
+                    mainStackView.replace(historyPage, { deviceId: deviceId })
+                }
+            }
+        }
+    }
+
+    Component {
+        id: ccuComponent
+        CCUDetail {
+        }
+    }
+
+    Component {
+        id: historyPage
+        HistoryPage {
+            onBackRequested: {
+                mainStackView.pop()
+            }
+            onRecordRequested: function(recordId) {
+                // 从历史记录跳转到对应设备的详情页，携带 recordId 便于后续扩展
+                mainStackView.replace(detialPage, {
+                    deviceId: deviceId,
+                    detailComponent: ccuComponent
+                })
+            }
         }
     }
 
