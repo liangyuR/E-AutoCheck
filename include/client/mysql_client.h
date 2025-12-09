@@ -3,16 +3,10 @@
 // ===========================
 #pragma once
 
-#include <atomic>
-#include <chrono>
-#include <condition_variable>
 #include <memory>
 #include <mutex>
-#include <optional>
-#include <queue>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -22,8 +16,13 @@
 // yaml-cpp
 #include <yaml-cpp/yaml.h>
 
-// MySQL Connector/C++ X DevAPI
-#include <mysqlx/xdevapi.h>
+// MySQL Connector/C++ JDBC Classic Protocol
+#include <mysql/jdbc.h>
+// absl
+#include <absl/status/statusor.h>
+
+// db
+#include "db/db_row.h"
 
 namespace db {
 
@@ -54,18 +53,10 @@ using DbValue = std::variant<std::nullptr_t, int64_t, double, std::string>;
 // ---------------------------
 struct Endpoint {
   std::string host = "127.0.0.1";
-  uint16_t port = 33060; // X Protocol 默认 33060
+  uint16_t port = 3306; // Classic Protocol 默认 3306
   std::string user;
   std::string password;
   std::string database;
-};
-
-struct PoolConfig {
-  bool enabled = true;
-  int max_size = 10;
-  int min_idle = 2;
-  int acquire_timeout_ms = 3000;
-  int keepalive_sec = 60; // 借出/归还时 ping
 };
 
 struct RetryConfig {
@@ -74,8 +65,6 @@ struct RetryConfig {
 };
 
 struct BehaviorConfig {
-  bool read_from_replicas = true;
-  bool force_master_in_tx = true; // 预留
   std::string timezone = "UTC";
   int slow_sql_ms = 200;
 };
@@ -87,15 +76,13 @@ struct Timeouts {
 };
 
 struct MySqlConfig {
-  Endpoint rw;
-  std::vector<Endpoint> ro; // optional
+  Endpoint endpoint;
   std::string charset = "utf8mb4";
   Timeouts timeouts;
 };
 
 struct Config {
   MySqlConfig mysql;
-  PoolConfig pool;
   RetryConfig retry;
   BehaviorConfig behavior;
 
@@ -105,32 +92,50 @@ struct Config {
 // ---------------------------
 // Internal helpers (opaque in header)
 // ---------------------------
-class ConnectionHolder;
-class ConnectionPool;
+// Simple connection holder - no pool needed
 
 // ---------------------------
 // Public client (sync)
 // ---------------------------
 class MySqlClient {
 public:
-  explicit MySqlClient(const Config &cfg);
-  ~MySqlClient();
-
-  // SELECT; useReplica=true → 从库；false → 主库
-  std::vector<std::unordered_map<std::string, std::string>>
-  executeQuery(const std::string &sql, const std::vector<DbValue> &params = {},
-               bool useReplica = true);
-
-  // INSERT/UPDATE/DELETE
-  uint64_t executeUpdate(const std::string &sql,
-                         const std::vector<DbValue> &params = {});
-
-  // Utility: simple ping master
-  void ping();
+  static void Init(const Config &cfg);
+  static void Shutdown();
+  static MySqlClient *GetInstance();
 
 private:
-  std::unique_ptr<ConnectionPool> pool_;
+  explicit MySqlClient(const Config &cfg);
+
+public:
+  ~MySqlClient();
+
+  // Delete copy and assignment
+  MySqlClient(const MySqlClient &) = delete;
+  MySqlClient &operator=(const MySqlClient &) = delete;
+
+  // SELECT
+  absl::StatusOr<std::vector<DbRow>>
+  executeQuery(const std::string &sql, const std::vector<DbValue> &params = {});
+
+  // INSERT/UPDATE/DELETE
+  absl::StatusOr<uint64_t>
+  executeUpdate(const std::string &sql,
+                const std::vector<DbValue> &params = {});
+
+  // Utility: simple ping
+  absl::Status ping();
+
+private:
+  void ensureConnection();
+  void ensureConnectionUnlocked(); // Internal version without lock
+  void reconnect();
+
+  std::unique_ptr<sql::Connection> connection_;
+  std::mutex connection_mutex_;
   Config cfg_;
+
+  static std::unique_ptr<MySqlClient> instance_;
+  static std::mutex instance_mutex_;
 };
 
 } // namespace db

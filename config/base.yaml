@@ -1,12 +1,11 @@
 redis:
-  host: "192.168.6.102"      # Redis服务器IP或主机名，默认localhost
+  host: "192.168.6.101"      # Redis服务器IP或主机名，默认localhost
   port: 6379                 # 端口，默认6379
   password: ""               # 认证密码，如无则为空
-  db: 0                      # 数据库索引，默认0
+  db: 4                      # 数据库索引，默认0
   timeout: 0                 # 连接超时（毫秒），0表示无超时
   pool_size: 1               # 连接池大小，可选
-  station_id: "124565"       # 站点ID
-  pile_id: "1"               # 桩ID
+
 
 mqtt:
   server_uri: "tcp://localhost:1883"  # MQTT服务端URI
@@ -20,16 +19,15 @@ http:
   base_url: "http://localhost:8080"   # HTTP服务端基础URL
 
 rabbitmq:
-  host: "192.168.6.102"           # RabbitMQ服务器地址
+  host: "192.168.6.101"           # RabbitMQ服务器地址
   port: 5672                      # RabbitMQ端口
   username: "root"                # 用户名
   password: "viscalbarca23110675HH"  # 密码
   vhost: "/"                      # 虚拟主机
   exchange: "MuskEx"              # 交换机名称
-  queue_name: "auto_charge"       # 队列名
+  queue_name: "AutoCheck"       # 队列名
   req_queue: "%s.DataServer.req"  # 请求队列名
   resp_queue: "DataServer.%s.resp" # 响应队列名
-  pile_id: "0005002000224016"     # 桩ID
 
 rabbitmq_local:
   host: "127.0.0.1"               # RabbitMQ本地服务器地址
@@ -45,22 +43,22 @@ rabbitmq_local:
 
 mysql:
   rw:
-    host: 127.0.0.1
+    host: 192.168.6.101
     port: 3306
-    user: app
-    password: secret
-    database: appdb
+    user: root
+    password: ciobadharua64340853NN
+    database: hcms5155261
   ro:
-    - host: 10.0.0.2
+    - host: 192.168.6.101
       port: 3306
-      user: app_ro
-      password: secret
-      database: appdb
-    - host: 10.0.0.3
+      user: root
+      password: ciobadharua64340853NN
+      database: hcms5155261
+    - host: 192.168.6.101
       port: 3306
-      user: app_ro
-      password: secret
-      database: appdb
+      user: root
+      password: ciobadharua64340853NN
+      database: hcm5155261
   charset: utf8mb4
   connect_timeout_ms: 5000
   read_timeout_ms: 5000
@@ -80,5 +78,5 @@ retry:
 behavior:
   read_from_replicas: true
   force_master_in_tx: true   # 当前实现无事务API，预留
-  timezone: UTC
+  timezone: "+00:00"
   slow_sql_ms: 200

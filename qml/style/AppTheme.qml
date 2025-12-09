@@ -3,16 +3,22 @@ import QtQuick
 import QtQuick.Controls.Material
 
 QtObject {
+    property bool darkMode: false
+
     // Background colors
     readonly property color backgroundPrimary: "#EEF4F9"
     readonly property color backgroundSecondary: "#FFFFFF"
     readonly property color backgroundTertiary: "#F5F5F5"
+    readonly property color iconOnHeader: darkMode ? "#FFFFFF" : "#000000"
+    readonly property color foregroundSecondary: "#666666"
 
     // Text colors
     readonly property color textPrimary: "#000000"
     readonly property color textSecondary: "#666666"
     readonly property color textTertiary: "#999999"
     readonly property color textInverse: "#FFFFFF"
+    // Text color when placed on primary/accent surfaces
+    readonly property color textOnPrimary: "#FFFFFF"
 
     // Accent colors
     readonly property color accent: "#1565C0" // Match qtquickcontrols2.conf Accent

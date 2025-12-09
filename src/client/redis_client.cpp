@@ -1,40 +1,27 @@
 #include "client/redis_client.h"
 
 #include <chrono>
+#include <iterator>
 #include <memory>
+#include <vector>
 
 namespace client {
-std::unique_ptr<RedisClient>
-RedisClient::Create(const YAML::Node &redis_config) {
-  return std::unique_ptr<RedisClient>(new RedisClient(redis_config));
+
+std::unique_ptr<RedisClient> RedisClient::instance_;
+std::mutex RedisClient::instance_mutex_;
+
+void RedisClient::Init(const YAML::Node &redis_config) {
+  std::lock_guard<std::mutex> lock(instance_mutex_);
+  if (!instance_) {
+    instance_.reset(new RedisClient(redis_config));
+  }
 }
+
+RedisClient *RedisClient::GetInstance() { return instance_.get(); }
 
 RedisClient::RedisClient(const YAML::Node &redis_config) {
   LoadConfig_(redis_config);
   // 不再在构造函数中连接，避免阻塞
-}
-
-RedisClient::RedisClient(RedisClient &&other) noexcept
-    : connection_options_(std::move(other.connection_options_)),
-      redis_(std::move(other.redis_)), connected_(other.connected_.load()),
-      connecting_(other.connecting_.load()),
-      connection_future_(std::move(other.connection_future_)) {
-  other.connected_.store(false);
-  other.connecting_.store(false);
-}
-
-RedisClient &RedisClient::operator=(RedisClient &&other) noexcept {
-  if (this != &other) {
-    Disconnect();
-    connection_options_ = std::move(other.connection_options_);
-    redis_ = std::move(other.redis_);
-    connected_.store(other.connected_.load());
-    connecting_.store(other.connecting_.load());
-    connection_future_ = std::move(other.connection_future_);
-    other.connected_.store(false);
-    other.connecting_.store(false);
-  }
-  return *this;
 }
 
 RedisClient::~RedisClient() { Disconnect(); }
@@ -167,6 +154,67 @@ std::optional<std::string> RedisClient::HGet(const std::string &key,
   }
 }
 
+std::optional<std::unordered_map<std::string, std::string>>
+RedisClient::HGetAll(const std::string &key) const {
+  if (!connected_.load()) {
+    LOG(ERROR) << "[RedisClient] Redis not connected";
+    return std::nullopt;
+  }
+
+  try {
+    std::unordered_map<std::string, std::string> values;
+    DLOG(INFO) << "[RedisClient] Redis HGETALL for key '" << key << "'";
+    redis_->hgetall(key, std::inserter(values, values.end()));
+    DLOG(INFO) << "[RedisClient] Redis HGETALL values: " << values.size();
+    for (const auto &[key, value] : values) {
+      DLOG(INFO) << "[RedisClient] Redis HGETALL key: " << key
+                 << " value: " << value;
+    }
+    return values;
+  } catch (const sw::redis::Error &err) {
+    LOG(ERROR) << "[RedisClient] Redis HGETALL failed for key '" << key
+               << "': " << err.what();
+    return std::nullopt;
+  }
+}
+
+std::vector<std::string> RedisClient::Scan(const std::string &pattern,
+                                           std::size_t limit) const {
+  if (!connected_.load()) {
+    LOG(ERROR) << "[RedisClient] Redis not connected";
+    return {};
+  }
+
+  std::vector<std::string> keys;
+  try {
+    redis_->scan(0, pattern, 100, std::back_inserter(keys));
+    return keys;
+  } catch (const sw::redis::Error &err) {
+    LOG(ERROR) << "[RedisClient] Redis SCAN failed for pattern '" << pattern
+               << "': " << err.what();
+    return {};
+  }
+}
+
+std::vector<std::string> RedisClient::Keys(const std::string &pattern) const {
+  if (!connected_.load()) {
+    LOG(ERROR) << "[RedisClient] Redis not connected";
+    return {};
+  }
+
+  std::vector<std::string> keys;
+  try {
+    redis_->keys(pattern, std::back_inserter(keys));
+    DLOG(INFO) << "[RedisClient] Redis KEYS found " << keys.size()
+               << " keys for pattern '" << pattern << "'";
+    return keys;
+  } catch (const sw::redis::Error &err) {
+    LOG(ERROR) << "[RedisClient] Redis KEYS failed for pattern '" << pattern
+               << "': " << err.what();
+    return {};
+  }
+}
+
 void RedisClient::LoadConfig_(const YAML::Node &redis_config) {
   try {
     connection_options_.host =
@@ -181,7 +229,8 @@ void RedisClient::LoadConfig_(const YAML::Node &redis_config) {
     connection_options_.socket_timeout = std::chrono::milliseconds(timeout_ms);
 
     LOG(INFO) << "[RedisClient] Redis config loaded: "
-              << connection_options_.host << ":" << connection_options_.port;
+              << connection_options_.host << ":" << connection_options_.port
+              << " db: " << connection_options_.db;
   } catch (const YAML::Exception &e) {
     LOG(ERROR) << "[RedisClient] Failed to load Redis config: " << e.what();
     throw std::runtime_error("Invalid Redis configuration");
