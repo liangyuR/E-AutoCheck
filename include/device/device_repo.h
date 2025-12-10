@@ -19,6 +19,9 @@ public:
   static absl::StatusOr<std::vector<device::CCUAttributes>>
   GetPileItems(const QString &recordId);
 
+  static absl::StatusOr<device::CCUAttributes>
+  GetPileItem(const QString &device_id);
+
 private:
   static ChargerBoxAttributes
   ChargerBoxAttributesFromDbRow(const db::DbRow &row);

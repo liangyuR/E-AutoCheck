@@ -106,8 +106,7 @@ DeviceRepo::GetPileItems(const QString &recordId) {
   }
 
   auto rows_result = client->executeQuery(
-      "SELECT DetailJson FROM self_check_record WHERE ID = ?",
-      {recordId.toStdString()});
+      "SELECT * FROM self_check_record WHERE ID = ?", {recordId.toStdString()});
 
   if (!rows_result.ok()) {
     return rows_result.status();
@@ -119,19 +118,19 @@ DeviceRepo::GetPileItems(const QString &recordId) {
         absl::StrFormat("record not found for id: %s", recordId.toStdString()));
   }
 
-  const auto detail_json_str = rows.front().getString("DetailJson");
+  const auto detail_json_str = rows.front().getString("DetailsJSON");
 
   nlohmann::json detail_json; // NOLINT
   try {
     detail_json = nlohmann::json::parse(detail_json_str);
   } catch (const nlohmann::json::exception &e) {
     return absl::InvalidArgumentError(
-        absl::StrFormat("failed to parse DetailJson: %s", e.what()));
+        absl::StrFormat("failed to parse DetailsJSON: %s", e.what()));
   }
 
   if (!detail_json.contains("ccuModules") ||
       !detail_json["ccuModules"].is_array()) {
-    return absl::InvalidArgumentError("DetailJson missing ccuModules array");
+    return absl::InvalidArgumentError("DetailsJSON missing ccuModules array");
   }
 
   auto get_string = [](const nlohmann::json &obj,
@@ -145,11 +144,7 @@ DeviceRepo::GetPileItems(const QString &recordId) {
 
   const std::string device_id = get_string(detail_json, "deviceId");
   const std::string device_type = get_string(detail_json, "deviceType");
-  std::string last_check_time =
-      get_string(detail_json, "lastCheckTime"); // TODO(@liangyu) fix bug
-  if (last_check_time.empty()) {
-    last_check_time = get_string(detail_json, "finishTime");
-  }
+  const auto create_at = rows.front().getString("CreatedAt");
 
   const auto &modules = detail_json["ccuModules"];
   std::vector<device::CCUAttributes> attributes;
@@ -176,7 +171,7 @@ DeviceRepo::GetPileItems(const QString &recordId) {
     attr.index = module.value("index", 0);
     attr.device_id = device_id;
     attr.device_type = device_type;
-    attr.last_check_time = last_check_time;
+    attr.last_check_time = create_at;
 
     const auto &ac1 = module.value("acContactor1", nlohmann::json::object());
     attr.ac_contactor_1.contactor1_stuck = get_nested_bool(ac1, "stuck");

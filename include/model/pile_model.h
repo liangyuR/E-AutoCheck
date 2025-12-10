@@ -3,6 +3,7 @@
 #include "device/device_object.h"
 #include <QAbstractListModel>
 #include <QString>
+#include <qtmetamacros.h>
 #include <vector>
 
 namespace qml_model {
@@ -60,6 +61,14 @@ public:
 
   Q_INVOKABLE void loadDemo();
   Q_INVOKABLE void loadFromHistory(const QString &recordId);
+
+  /**
+   * @brief Loads the latest check result for the specified device ID.
+   *
+   * 这个接口会读取当前设备ID的最新检查结果。
+   * @param deviceId 设备的唯一标识符
+   */
+  Q_INVOKABLE void loadFromDevice(const QString &deviceId);
 
 signals:
   void countChanged();
