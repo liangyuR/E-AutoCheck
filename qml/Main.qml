@@ -160,7 +160,7 @@ ApplicationWindow {
           id: homeRoot
           Connections {
             target: homeRoot
-            function onDetailPageRequested(deviceId) {
+            function onToItemDetailPageRequested(deviceId) {
               console.log("触发切换到详细页面，当前设备ID：", deviceId)
               mainStackView.replace(detialPage, {
                 deviceId: deviceId,

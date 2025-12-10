@@ -4,7 +4,6 @@
 #include <QQuickStyle>
 
 #include "check_manager.h"
-// #include "client/http_client.h"
 #include "client/mysql_client.h"
 #include "client/rabbitmq_client.h"
 #include "client/redis_client.h"
