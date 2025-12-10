@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Layouts
 import GUI
+import EAutoCheck 1.0
 
 ApplicationWindow {
     id: window
@@ -201,6 +202,7 @@ ApplicationWindow {
                 mainStackView.pop()
             }
             onRecordRequested: function(recordId) {
+                PileModel.loadFromHistory(recordId);
                 // 从历史记录跳转到对应设备的详情页，携带 recordId 便于后续扩展
                 mainStackView.replace(detialPage, {
                     deviceId: deviceId,

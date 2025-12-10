@@ -179,6 +179,15 @@ void PileModel::loadFromHistory(const QString &recordId) {
   resetWith(std::move(result.value()));
 }
 
+void PileModel::loadFromDevice(const QString &deviceId) {
+  auto result = device::DeviceRepo::GetPileItems(deviceId);
+  if (!result.ok()) {
+    LOG(ERROR) << "获取设备最新检查结果失败: " << result.status().ToString();
+    return;
+  }
+  resetWith(std::move(result.value()));
+}
+
 void PileModel::resetWith(std::vector<device::CCUAttributes> &&items) {
   beginResetModel();
   items_ = std::move(items);

@@ -24,6 +24,8 @@ Item {
     onDeviceIdChanged: {
         if (deviceId.length === 16) {
             HistoryModel.load(deviceId, 10)
+            var firstItemRecordId = HistoryModel.GetFirstItemRecordId()
+            PileModel.loadFromDevice(firstItemRecordId)
         } else {
             console.warn("无效的设备ID长度:", deviceId)
         }

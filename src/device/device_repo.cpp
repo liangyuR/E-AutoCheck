@@ -106,8 +106,7 @@ DeviceRepo::GetPileItems(const QString &recordId) {
   }
 
   auto rows_result = client->executeQuery(
-      "SELECT DetailJson FROM self_check_record WHERE ID = ?",
-      {recordId.toStdString()});
+      "SELECT * FROM self_check_record WHERE ID = ?", {recordId.toStdString()});
 
   if (!rows_result.ok()) {
     return rows_result.status();
@@ -119,19 +118,19 @@ DeviceRepo::GetPileItems(const QString &recordId) {
         absl::StrFormat("record not found for id: %s", recordId.toStdString()));
   }
 
-  const auto detail_json_str = rows.front().getString("DetailJson");
+  const auto detail_json_str = rows.front().getString("DetailsJSON");
 
   nlohmann::json detail_json; // NOLINT
   try {
     detail_json = nlohmann::json::parse(detail_json_str);
   } catch (const nlohmann::json::exception &e) {
     return absl::InvalidArgumentError(
-        absl::StrFormat("failed to parse DetailJson: %s", e.what()));
+        absl::StrFormat("failed to parse DetailsJSON: %s", e.what()));
   }
 
   if (!detail_json.contains("ccuModules") ||
       !detail_json["ccuModules"].is_array()) {
-    return absl::InvalidArgumentError("DetailJson missing ccuModules array");
+    return absl::InvalidArgumentError("DetailsJSON missing ccuModules array");
   }
 
   auto get_string = [](const nlohmann::json &obj,

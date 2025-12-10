@@ -38,6 +38,11 @@ public:
   // 给 QML 用的懒加载接口
   Q_INVOKABLE void load(const QString &deviceId, int limit = 10);
   Q_INVOKABLE QVariant get(int row) const;
+  Q_INVOKABLE QString GetFirstItemRecordId() const {
+    if (items_.empty())
+      return {};
+    return items_.front().recordId;
+  }
 
 signals:
   void loadingChanged();
