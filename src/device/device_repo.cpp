@@ -145,11 +145,7 @@ DeviceRepo::GetPileItems(const QString &recordId) {
 
   const std::string device_id = get_string(detail_json, "deviceId");
   const std::string device_type = get_string(detail_json, "deviceType");
-  std::string last_check_time =
-      get_string(detail_json, "lastCheckTime"); // TODO(@liangyu) fix bug
-  if (last_check_time.empty()) {
-    last_check_time = get_string(detail_json, "finishTime");
-  }
+  const auto create_at = rows.front().getString("CreatedAt");
 
   const auto &modules = detail_json["ccuModules"];
   std::vector<device::CCUAttributes> attributes;
@@ -176,7 +172,7 @@ DeviceRepo::GetPileItems(const QString &recordId) {
     attr.index = module.value("index", 0);
     attr.device_id = device_id;
     attr.device_type = device_type;
-    attr.last_check_time = last_check_time;
+    attr.last_check_time = create_at;
 
     const auto &ac1 = module.value("acContactor1", nlohmann::json::object());
     attr.ac_contactor_1.contactor1_stuck = get_nested_bool(ac1, "stuck");
