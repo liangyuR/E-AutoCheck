@@ -1,4 +1,3 @@
 build
-assets/fonts/Roboto-Bold.ttf:Zone.Identifier
-assets/fonts/Roboto-Medium.ttf:Zone.Identifier
-assets/fonts/Roboto-Regular.ttf:Zone.Identifier
+
+assets/fonts/*.Identifier
