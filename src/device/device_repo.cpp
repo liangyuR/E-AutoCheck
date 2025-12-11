@@ -6,9 +6,8 @@
 
 namespace device {
 
-ChargerBoxAttributes
-DeviceRepo::ChargerBoxAttributesFromDbRow(const db::DbRow &row) {
-  ChargerBoxAttributes attrs;
+PileAttr DeviceRepo::PileDeviceFromDbRow(const db::DbRow &row) {
+  PileAttr attrs;
   attrs.db_id = row.getInt("ID");
   attrs.station_no = row.getString("StationNo");
   attrs.equip_no = row.getString("EquipNo");
@@ -28,8 +27,7 @@ DeviceRepo::ChargerBoxAttributesFromDbRow(const db::DbRow &row) {
   return attrs;
 }
 
-absl::StatusOr<std::vector<ChargerBoxAttributes>>
-DeviceRepo::GetAllPipeDevices() {
+absl::StatusOr<std::vector<PileAttr>> DeviceRepo::GetAllPipeDevices() {
   auto *client = db::MySqlClient::GetInstance();
   if (client == nullptr) {
     return absl::InternalError("MySQL client not initialized");
@@ -47,10 +45,10 @@ DeviceRepo::GetAllPipeDevices() {
   }
 
   const auto &rows = rows_result.value();
-  std::vector<ChargerBoxAttributes> attrs;
+  std::vector<PileAttr> attrs;
   attrs.reserve(rows.size());
   for (const auto &row : rows) {
-    attrs.push_back(DeviceRepo::ChargerBoxAttributesFromDbRow(row));
+    attrs.push_back(DeviceRepo::PileDeviceFromDbRow(row));
   }
   return attrs;
 }
@@ -143,6 +141,7 @@ DeviceRepo::GetPileItems(const QString &recordId) {
   };
 
   const std::string device_id = get_string(detail_json, "deviceId");
+  const std::string device_name = get_string(detail_json, "deviceName");
   const std::string device_type = get_string(detail_json, "deviceType");
   const auto create_at = rows.front().getString("CreatedAt");
 
@@ -170,6 +169,7 @@ DeviceRepo::GetPileItems(const QString &recordId) {
     device::CCUAttributes attr;
     attr.index = module.value("index", 0);
     attr.device_id = device_id;
+    attr.device_name = device_name;
     attr.device_type = device_type;
     attr.last_check_time = create_at;
 
@@ -240,6 +240,33 @@ DeviceRepo::GetPileItems(const QString &recordId) {
   }
 
   return attributes;
+}
+
+absl::StatusOr<std::vector<device::CCUAttributes>>
+DeviceRepo::GetLatestPileItems(const QString &deviceId) {
+  auto *client = db::MySqlClient::GetInstance();
+  if (client == nullptr) {
+    return absl::InternalError("MySQL client not initialized");
+  }
+
+  // 查询该设备最新的检查记录ID
+  auto rows_result = client->executeQuery("SELECT ID FROM self_check_record "
+                                          "WHERE EquipNo = ? "
+                                          "ORDER BY CreatedAt DESC LIMIT 1",
+                                          {deviceId.toStdString()});
+
+  if (!rows_result.ok()) {
+    return rows_result.status();
+  }
+
+  const auto &rows = rows_result.value();
+  if (rows.empty()) {
+    // 设备没有检查记录，返回空列表
+    return std::vector<device::CCUAttributes>{};
+  }
+
+  const auto recordId = QString::fromStdString(rows.front().getString("ID"));
+  return GetPileItems(recordId);
 }
 
 } // namespace device

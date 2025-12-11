@@ -11,7 +11,7 @@ Page {
     id: page
     title: qsTr("设备总览")
 
-    signal detailPageRequested(string deviceId)
+    signal toItemDetailPageRequested(string deviceId)
 
     background: Rectangle {
         color: AppTheme.backgroundPrimary
@@ -35,29 +35,20 @@ Page {
                 spacing: AppLayout.spacingMedium
 
                 Repeater {
-                    model: DeviceManager
+                    model: DeviceModel
 
                     Loader {
                         id: cardLoader
-                        // 根据 type 选择组件
-                        // 注意：C++ 返回的 type 可能是 "PILE", "STACK" 等
-                        property bool isPile: model.type === "PILE" || model.type === "STACK"
-                        
-                        sourceComponent: isPile 
-                            ? chargingPileCardComponent 
-                            : deviceCardComponent
+                        // TODO(@liangyu) 目前只有充电桩卡片，后续可根据 model.type 选择不同组件
+                        sourceComponent: chargingPileCardComponent 
 
                         onLoaded: {
                             // 一次性设置不需要动态更新的属性
                             item.deviceId = model.equipNo
                             item.name = model.name
-                            if (isPile) {
-                                item.ipAddress = model.ipAddr
-                                // item.checkProgress = ... // 需要 C++ 提供
-                                // item.checkTotal = ...
-                            } else {
-                                item.location = model.stationNo // 暂用 stationNo 代替 location
-                            }
+                            item.ipAddress = model.ipAddr || ""
+                            // item.checkProgress = ... // 需要 C++ 提供
+                            // item.checkTotal = ...
                         }
 
                         // 使用 Binding 元素绑定需要动态更新的属性
@@ -71,7 +62,6 @@ Page {
                         Binding {
                             target: cardLoader.item
                             property: "statusText"
-                            // 使用 DeviceManager 提供的状态文本，如果没有则使用默认值
                             value: model.statusText || (model.isOnline ? "正常" : "离线")
                             when: cardLoader.item !== null
                         }
@@ -109,8 +99,7 @@ Page {
                             }
                             
                             function onCardLongPressed(deviceId) {
-                                console.log("Long pressed:", deviceId)
-                                detailPageRequested(deviceId)
+                                toItemDetailPageRequested(deviceId)
                             }
                         }
                     }
@@ -122,12 +111,6 @@ Page {
     // 充电桩卡片组件
     Component {
         id: chargingPileCardComponent
-        ChargingPileCard {}
-    }
-
-    // 通用设备卡片组件
-    Component {
-        id: deviceCardComponent
-        DeviceCard {}
+        PileCard {}
     }
 }

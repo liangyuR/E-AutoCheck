@@ -14,14 +14,14 @@
 #include "client/mysql_client.h"
 #include "client/rabbitmq_client.h"
 #include "client/redis_client.h"
-#include "device/device_manager.h"
 #include "device/device_object.h"
+#include "model/device_model.h"
 #include "utils/convert.h"
 
 namespace EAutoCheck {
-CheckManager::CheckManager(device::DeviceManager *device_manager,
+CheckManager::CheckManager(qml_model::DeviceModel *device_model,
                            QObject *parent)
-    : QObject(parent), device_manager_(device_manager) {}
+    : QObject(parent), device_model_(device_model) {}
 
 CheckManager::~CheckManager() = default;
 
@@ -122,8 +122,8 @@ void CheckManager::recvMsg(const std::string &message) {
                  << " 状态=" << state << " 结果=" << result
                  << " 检测中=" << is_checking << " 已完成=" << is_finished;
 
-      if (device_manager_ != nullptr) {
-        device_manager_->updateSelfCheckProgress(pile_id, desc, is_checking);
+      if (device_model_ != nullptr) {
+        device_model_->updateSelfCheckProgress(pile_id, desc, is_checking);
       }
     }
     // 处理最终结果格式 (ReqType)
@@ -160,9 +160,9 @@ void CheckManager::recvMsg(const std::string &message) {
       }
 
       // Update UI
-      if (device_manager_ != nullptr) {
+      if (device_model_ != nullptr) {
         // 更新进度为完成
-        device_manager_->updateSelfCheckProgress(pile_id, final_desc, false);
+        device_model_->updateSelfCheckProgress(pile_id, final_desc, false);
 
         // 构建并更新最终结果
         device::SelfCheckResult check_result;
@@ -183,7 +183,7 @@ void CheckManager::recvMsg(const std::string &message) {
           check_result.status = device::SelfCheckStatus::Failed;
         }
 
-        device_manager_->updateSelfCheck(pile_id, check_result);
+        device_model_->updateSelfCheck(pile_id, check_result);
       }
     } else {
       LOG(WARNING) << "消息格式无效，缺少 NoticeType 或 ReqType";
@@ -199,11 +199,11 @@ void CheckManager::recvMsg(const std::string &message) {
 
 absl::StatusOr<std::vector<device::CCUAttributes>>
 CheckManager::getResultFromRedis(const std::string &device_id) {
-  if (device_manager_ == nullptr) {
-    return absl::InternalError("DeviceManager is not initialized");
+  if (device_model_ == nullptr) {
+    return absl::InternalError("DeviceModel is not initialized");
   }
 
-  auto device = device_manager_->getDeviceByEquipNo(device_id);
+  auto device = device_model_->getDeviceByEquipNo(device_id);
   if (!device) {
     return absl::NotFoundError("Device not found: " + device_id);
   }
@@ -257,11 +257,11 @@ absl::Status CheckManager::saveResultToMysql(const std::string &device_id) {
     return absl::InternalError("MySQL client not initialized");
   }
 
-  if (device_manager_ == nullptr) {
-    return absl::InternalError("DeviceManager is not initialized");
+  if (device_model_ == nullptr) {
+    return absl::InternalError("DeviceModel is not initialized");
   }
 
-  auto device = device_manager_->getDeviceByEquipNo(device_id);
+  auto device = device_model_->getDeviceByEquipNo(device_id);
   if (!device) {
     return absl::NotFoundError("Device not found: " + device_id);
   }
@@ -270,6 +270,8 @@ absl::Status CheckManager::saveResultToMysql(const std::string &device_id) {
 
   nlohmann::json details_json; // NOLINT
   details_json["deviceId"] = device_id;
+  details_json["deviceName"] = device->Attributes().name;
+  details_json["deviceType"] = device->Attributes().type;
 
   int issue_count = 0;
   auto attributes_or = getResultFromRedis(device_id);
@@ -391,11 +393,11 @@ absl::Status CheckManager::saveResultToMysql(const std::string &device_id) {
 
 absl::StatusOr<std::vector<std::string>>
 CheckManager::getRedisKey(const std::string &device_id) {
-  if (device_manager_ == nullptr) {
-    return absl::InternalError("DeviceManager is not initialized");
+  if (device_model_ == nullptr) {
+    return absl::InternalError("DeviceModel is not initialized");
   }
 
-  auto device = device_manager_->getDeviceByEquipNo(device_id);
+  auto device = device_model_->getDeviceByEquipNo(device_id);
   if (!device) {
     LOG(WARNING) << "Device not found: " << device_id;
     return absl::NotFoundError("Device not found: " + device_id);
@@ -412,95 +414,4 @@ CheckManager::getRedisKey(const std::string &device_id) {
 
   return redis->Keys(modules_key);
 }
-
-absl::Status CheckManager::processAndSaveResult(const std::string &device_id) {
-  if (device_manager_ == nullptr) {
-    return absl::InternalError("DeviceManager is not initialized");
-  }
-
-  // 1. 获取设备信息以确定 Redis Key
-  auto device = device_manager_->getDeviceByEquipNo(device_id);
-  if (!device) {
-    LOG(WARNING) << "Device not found for result processing: " << device_id;
-    return absl::NotFoundError("Device not found");
-  }
-
-  // 根据设备类型构建 Redis Key
-  // 假设 Type 字段对应 Redis Key 中的类型标识
-  // 例如: PILE -> AutoCheck:Result:Pile:{id}
-  //       STACK -> AutoCheck:Result:Stack:{id}
-  std::string type_str = device->Attributes().type;
-  std::string redis_key_type = "Pile"; // Default
-  if (type_str == "PILE") {
-    redis_key_type = "Pile";
-  } else if (type_str == "STACK" || type_str == "Stack") {
-    redis_key_type = "Stack";
-  } else {
-    // 如果有其他类型，尝试直接使用 type
-    // 字符串（首字母大写处理可选，这里直接用）
-    redis_key_type = type_str;
-  }
-
-  std::string redis_key =
-      "AutoCheck:Result:" + redis_key_type + ":" + device_id;
-
-  // 2. 获取 Redis 客户端并读取结果
-  auto *redis = client::RedisClient::GetInstance();
-  if (redis == nullptr || !redis->IsConnected()) {
-    LOG(ERROR) << "Redis client is not ready, cannot fetch result for "
-               << device_id;
-    return absl::InternalError("Redis client is not ready");
-  }
-
-  // 获取设备类型
-
-  // 假设 Redis Key 格式为 AutoCheck:Result:{Type}:{pile_id}
-  // std::string redis_key = "AutoCheck:Result:" + device_id;
-  auto redis_val = redis->Get(redis_key);
-
-  if (!redis_val) {
-    LOG(WARNING) << "No check result found in Redis for key: " << redis_key;
-    return absl::NotFoundError("No check result found in Redis");
-  }
-
-  // 2. 解析 Redis 数据 (整理结果)
-  nlohmann::json result_json;
-  int final_result = 0;
-  std::string raw_data = *redis_val;
-
-  try {
-    result_json = nlohmann::json::parse(raw_data);
-    // 假设从 JSON 中提取关键字段
-    final_result = result_json.value("result", 0);
-  } catch (const std::exception &e) {
-    LOG(ERROR) << "Failed to parse Redis JSON: " << e.what();
-    return absl::InternalError("Failed to parse Redis JSON");
-  }
-
-  // 3. 获取 MySQL 客户端并保存
-  auto *mysql = db::MySqlClient::GetInstance();
-  if (mysql == nullptr) {
-    LOG(ERROR) << "MySQL client is not ready";
-    return absl::InternalError("MySQL client is not ready");
-  }
-
-  // 保存到 MySQL (表名: auto_check_records)
-  // 字段: equip_no, check_result, raw_data, created_at
-  const std::string sql =
-      "INSERT INTO auto_check_records (equip_no, check_result, raw_data, "
-      "created_at) VALUES (?, ?, ?, NOW())";
-
-  std::vector<db::DbValue> params = {device_id, final_result, raw_data};
-
-  auto db_res = mysql->executeUpdate(sql, params);
-  if (!db_res.ok()) {
-    LOG(ERROR) << "Failed to save check result to MySQL: "
-               << db_res.status().ToString();
-    return db_res.status();
-  }
-  LOG(INFO) << "Successfully saved check result for " << device_id;
-
-  return absl::OkStatus();
-}
-
 } // namespace EAutoCheck

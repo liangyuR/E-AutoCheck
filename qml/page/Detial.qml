@@ -17,18 +17,19 @@ Item {
     property Component detailComponent
 
     property string deviceId: ""
+    property string deviceName: PileModel.deviceName
 
     // 当前选中的历史索引
     property int historyIndex: 0
 
-    onDeviceIdChanged: {
-        if (deviceId.length === 16) {
-            HistoryModel.load(deviceId, 10)
-            var firstItemRecordId = HistoryModel.GetFirstItemRecordId()
-            PileModel.loadFromDevice(firstItemRecordId)
-        } else {
-            console.warn("无效的设备ID长度:", deviceId)
+    function loadData(id) {
+        if (!id || id.length !== 16) {
+            console.warn("无效的设备ID长度:", id)
+            return
         }
+        deviceId = id
+        // 直接通过 deviceId 加载最新的检查记录
+        PileModel.loadFromDevice(deviceId)
     }
 
     // =========================
@@ -118,6 +119,23 @@ Item {
                     console.warn("SelfCheckDetailPage: contentLoader error:", errorString())
                 }
             }
+        }
+
+        BusyIndicator {
+            anchors.centerIn: parent
+            running: PileModel.loading
+            visible: running
+            z: 2
+        }
+
+        Label {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: AppLayout.marginMedium
+            text: PileModel.lastError
+            visible: text.length > 0
+            color: AppTheme.error
+            z: 2
         }
     }
 }

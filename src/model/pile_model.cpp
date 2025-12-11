@@ -2,8 +2,11 @@
 #include "device/device_object.h"
 #include "device/device_repo.h"
 
+#include <QFutureWatcher>
 #include <QVariant>
+#include <QtConcurrent>
 #include <glog/logging.h>
+#include <utility>
 
 namespace qml_model {
 
@@ -29,6 +32,8 @@ QVariant PileModel::data(const QModelIndex &index, int role) const {
     return item.index;
   case DeviceIdRole:
     return QString::fromStdString(item.device_id);
+  case DeviceNameRole:
+    return QString::fromStdString(item.device_name);
   case DeviceTypeRole:
     return QString::fromStdString(item.device_type);
   case LastCheckTimeRole:
@@ -106,6 +111,7 @@ QHash<int, QByteArray> PileModel::roleNames() const {
   QHash<int, QByteArray> roles;
   roles[CcuIndexRole] = "ccuIndex";
   roles[DeviceIdRole] = "deviceId";
+  roles[DeviceNameRole] = "deviceName";
   roles[DeviceTypeRole] = "deviceType";
   roles[LastCheckTimeRole] = "lastCheckTime";
   roles[Ac1StuckRole] = "ac1_stuck";
@@ -171,21 +177,11 @@ void PileModel::loadDemo() {
 }
 
 void PileModel::loadFromHistory(const QString &recordId) {
-  auto result = device::DeviceRepo::GetPileItems(recordId);
-  if (!result.ok()) {
-    LOG(ERROR) << "获取历史记录失败: " << result.status().ToString();
-    return;
-  }
-  resetWith(std::move(result.value()));
+  loadAsyncByRecordId(recordId);
 }
 
 void PileModel::loadFromDevice(const QString &deviceId) {
-  auto result = device::DeviceRepo::GetPileItems(deviceId);
-  if (!result.ok()) {
-    LOG(ERROR) << "获取设备最新检查结果失败: " << result.status().ToString();
-    return;
-  }
-  resetWith(std::move(result.value()));
+  loadAsyncByDeviceId(deviceId);
 }
 
 void PileModel::resetWith(std::vector<device::CCUAttributes> &&items) {
@@ -193,6 +189,88 @@ void PileModel::resetWith(std::vector<device::CCUAttributes> &&items) {
   items_ = std::move(items);
   endResetModel();
   emit countChanged();
+}
+
+void PileModel::setLoading(bool loading) {
+  if (loading_ == loading)
+    return;
+
+  loading_ = loading;
+  emit loadingChanged();
+}
+
+void PileModel::setLastError(const QString &error) {
+  last_error_ = error;
+  emit errorChanged(error);
+}
+
+void PileModel::loadAsyncByRecordId(const QString &recordId) {
+  if (loading_) {
+    return;
+  }
+
+  setLastError({});
+  setLoading(true);
+
+  auto *watcher =
+      new QFutureWatcher<absl::StatusOr<std::vector<device::CCUAttributes>>>(
+          this);
+
+  connect(watcher,
+          &QFutureWatcher<
+              absl::StatusOr<std::vector<device::CCUAttributes>>>::finished,
+          this, [this, watcher]() {
+            auto result = watcher->future().result();
+            if (!result.ok()) {
+              setLastError(QString::fromStdString(result.status().ToString()));
+              setLoading(false);
+              watcher->deleteLater();
+              return;
+            }
+
+            auto items = std::move(result).value();
+            resetWith(std::move(items));
+            setLoading(false);
+            watcher->deleteLater();
+          });
+
+  watcher->setFuture(QtConcurrent::run(
+      [recordId]() { return device::DeviceRepo::GetPileItems(recordId); }));
+}
+
+void PileModel::loadAsyncByDeviceId(const QString &deviceId) {
+  if (loading_) {
+    return;
+  }
+
+  setLastError({});
+  setLoading(true);
+
+  auto *watcher =
+      new QFutureWatcher<absl::StatusOr<std::vector<device::CCUAttributes>>>(
+          this);
+
+  connect(watcher,
+          &QFutureWatcher<
+              absl::StatusOr<std::vector<device::CCUAttributes>>>::finished,
+          this, [this, watcher]() {
+            auto result = watcher->future().result();
+            if (!result.ok()) {
+              setLastError(QString::fromStdString(result.status().ToString()));
+              setLoading(false);
+              watcher->deleteLater();
+              return;
+            }
+
+            auto items = std::move(result).value();
+            resetWith(std::move(items));
+            setLoading(false);
+            watcher->deleteLater();
+          });
+
+  watcher->setFuture(QtConcurrent::run([deviceId]() {
+    return device::DeviceRepo::GetLatestPileItems(deviceId);
+  }));
 }
 
 } // namespace qml_model

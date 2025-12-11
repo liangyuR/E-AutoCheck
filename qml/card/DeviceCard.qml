@@ -1,4 +1,4 @@
-// ChargingPileCard.qml
+// DeviceCard.qml
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
@@ -9,35 +9,50 @@ import GUI
 Control {
     id: root
 
-    // 充电桩属性
+    // ========== 属性 ==========
     property string deviceId: ""
     property string name: ""
     property string ipAddress: ""
-    property string lastCheck: ""
-    property bool online: true
     property string statusText: ""
     property string statusLevel: "normal" // "normal" / "warning" / "error"
+    property string lastCheck: ""
+    property bool online: true
     property bool checking: false
-    property int checkProgress: 0      // 当前进度
-    property int checkTotal: 1         // 总项数
+    property int checkProgress: 0
+    property int checkTotal: 1
 
-    // 长按进度
+    // 尺寸模式: "compact" (280×180) / "standard" (360×240) / "large" (440×300)
+    property string sizeMode: "large"
+
+    // 长按进度（内部状态）
     property real longPressProgress: 0.0
 
-    // 信号
+    // 可定制属性（供子类覆盖）
+    property string deviceIcon: "\uE30A"  // Material Icons: label (默认)
+    property color headerColorStart: Qt.lighter(AppTheme.primary, 1.3)
+    property color headerColorEnd: AppTheme.primary
+    property color headerOfflineColorStart: "#BDBDBD"
+    property color headerOfflineColorEnd: "#9E9E9E"
+
+    // ========== 信号 ==========
     signal selfCheckRequested(string deviceId)
     signal cardLongPressed(string deviceId)
 
-    implicitWidth: 440
-    implicitHeight: 300
+    // ========== 尺寸计算 ==========
+    implicitWidth: sizeMode === "compact" ? 280 
+                 : sizeMode === "standard" ? 360 
+                 : 440
+    implicitHeight: sizeMode === "compact" ? 180 
+                  : sizeMode === "standard" ? 240 
+                  : 300
     padding: 0
 
-    // 长按检测
+    // ========== 长按检测 ==========
     MouseArea {
         id: longPressArea
         anchors.fill: parent
         propagateComposedEvents: true
-        
+
         onPressAndHold: {
             if (longPressTimer.running) {
                 longPressTimer.stop()
@@ -45,17 +60,16 @@ Control {
             }
             root.cardLongPressed(root.deviceId)
         }
-        
+
         onPressed: {
-            // mouse.accepted = false
             longPressTimer.start()
         }
-        
+
         onReleased: {
             longPressTimer.stop()
             progressResetAnimation.start()
         }
-        
+
         onCanceled: {
             longPressTimer.stop()
             progressResetAnimation.start()
@@ -69,12 +83,12 @@ Control {
         repeat: true
         property int elapsedTime: 0
         property int totalDuration: 800  // 800ms 完成长按
-        
+
         onTriggered: {
             elapsedTime += interval
             root.longPressProgress = Math.min(1.0, elapsedTime / totalDuration)
         }
-        
+
         onRunningChanged: {
             if (running) {
                 elapsedTime = 0
@@ -93,14 +107,15 @@ Control {
         easing.type: Easing.OutQuad
     }
 
+    // ========== 背景 ==========
     background: Rectangle {
         id: cardBackground
         radius: AppLayout.radiusLarge
         color: AppTheme.backgroundSecondary
         border.width: root.statusLevel === "error" ? 2 : 1
         border.color: root.statusLevel === "error" ? AppTheme.error
-                        : root.statusLevel === "warning" ? AppTheme.warning
-                        : AppTheme.borderLight
+                    : root.statusLevel === "warning" ? AppTheme.warning
+                    : AppTheme.borderLight
 
         layer.enabled: true
         layer.effect: DropShadow {
@@ -121,7 +136,6 @@ Control {
             border.color: "transparent"
             visible: root.longPressProgress > 0
 
-            // 使用ConicalGradient创建圆形进度效果
             layer.enabled: true
             layer.effect: OpacityMask {
                 maskSource: Rectangle {
@@ -139,14 +153,13 @@ Control {
                 anchors.fill: parent
                 radius: parent.radius
                 color: "transparent"
-                
-                // 创建渐变进度效果
+
                 ConicalGradient {
                     anchors.fill: parent
-                    angle: -90  // 从顶部开始
-                    
+                    angle: -90
+
                     gradient: Gradient {
-                        GradientStop { 
+                        GradientStop {
                             position: 0.0
                             color: Qt.rgba(
                                 AppTheme.primary.r,
@@ -155,7 +168,7 @@ Control {
                                 0.9
                             )
                         }
-                        GradientStop { 
+                        GradientStop {
                             position: root.longPressProgress
                             color: Qt.rgba(
                                 AppTheme.primary.r,
@@ -164,11 +177,11 @@ Control {
                                 0.9
                             )
                         }
-                        GradientStop { 
+                        GradientStop {
                             position: root.longPressProgress + 0.01
                             color: "transparent"
                         }
-                        GradientStop { 
+                        GradientStop {
                             position: 1.0
                             color: "transparent"
                         }
@@ -177,7 +190,7 @@ Control {
             }
         }
 
-        // 边框遮罩，只显示边缘部分
+        // 边框遮罩
         Rectangle {
             anchors.fill: parent
             anchors.margins: 3
@@ -187,24 +200,27 @@ Control {
         }
     }
 
+    // ========== 内容 ==========
     contentItem: ColumnLayout {
         spacing: 0
 
-        // 顶部渐变色区域 - 设备名称 + 状态
+        // 顶部渐变色区域
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 72
+            Layout.preferredHeight: root.sizeMode === "compact" ? 48 
+                                  : root.sizeMode === "standard" ? 60 
+                                  : 72
             radius: AppLayout.radiusLarge
             clip: true
 
             gradient: Gradient {
                 GradientStop {
                     position: 0.0
-                    color: root.online ? Qt.lighter(AppTheme.primary, 1.3) : "#BDBDBD"
+                    color: root.online ? root.headerColorStart : root.headerOfflineColorStart
                 }
                 GradientStop {
                     position: 1.0
-                    color: root.online ? AppTheme.primary : "#9E9E9E"
+                    color: root.online ? root.headerColorEnd : root.headerOfflineColorEnd
                 }
             }
 
@@ -216,38 +232,39 @@ Control {
 
                 // 设备图标
                 Rectangle {
-                    width: 48
-                    height: 48
-                    radius: 24
+                    width: root.sizeMode === "compact" ? 36 : 48
+                    height: width
+                    radius: width / 2
                     color: Qt.rgba(255, 255, 255, 0.3)
                     Layout.alignment: Qt.AlignVCenter
 
                     Label {
                         anchors.centerIn: parent
-                        text: "\uE1E0" // Material Icons: ev_station
+                        text: root.deviceIcon
                         font.family: AppFont.iconFontFamily
-                        font.pixelSize: 28
+                        font.pixelSize: root.sizeMode === "compact" ? 20 : 28
                         color: "white"
                     }
                 }
 
                 // 设备名称
                 Label {
-                    text: root.name
+                    text: root.name || root.deviceId
                     font: Qt.font({
                         family: AppFont.fontFamily,
-                        pixelSize: 20,
+                        pixelSize: root.sizeMode === "compact" ? 16 : 20,
                         weight: Font.Medium
                     })
                     color: "white"
                     Layout.fillWidth: true
+                    elide: Label.ElideRight
                 }
 
                 // 在线状态徽章
                 Rectangle {
-                    width: 68
-                    height: 28
-                    radius: 14
+                    width: root.sizeMode === "compact" ? 56 : 68
+                    height: root.sizeMode === "compact" ? 24 : 28
+                    radius: height / 2
                     color: Qt.rgba(255, 255, 255, 0.25)
                     Layout.alignment: Qt.AlignVCenter
 
@@ -302,6 +319,8 @@ Control {
                         text: "ID: " + root.deviceId
                         font: AppFont.body
                         color: AppTheme.textPrimary
+                        elide: Label.ElideRight
+                        Layout.fillWidth: true
                     }
                 }
 
@@ -321,6 +340,8 @@ Control {
                         text: root.ipAddress || "N/A"
                         font: AppFont.body
                         color: AppTheme.textPrimary
+                        elide: Label.ElideRight
+                        Layout.fillWidth: true
                     }
                 }
 
@@ -341,6 +362,8 @@ Control {
                         text: "最后检测: " + (root.lastCheck || "从未")
                         font: AppFont.caption
                         color: AppTheme.textSecondary
+                        elide: Label.ElideRight
+                        Layout.fillWidth: true
                     }
                 }
             }
@@ -351,8 +374,8 @@ Control {
                 height: 32
                 radius: AppLayout.radiusSmall
                 color: root.statusLevel === "error" ? Qt.rgba(244, 67, 54, 0.1)
-                       : root.statusLevel === "warning" ? Qt.rgba(255, 152, 0, 0.1)
-                       : Qt.rgba(76, 175, 80, 0.1)
+                     : root.statusLevel === "warning" ? Qt.rgba(255, 152, 0, 0.1)
+                     : Qt.rgba(76, 175, 80, 0.1)
 
                 RowLayout {
                     anchors.fill: parent
@@ -365,17 +388,18 @@ Control {
                         height: 10
                         radius: 5
                         color: root.statusLevel === "error" ? AppTheme.error
-                               : root.statusLevel === "warning" ? AppTheme.warning
-                               : AppTheme.success
+                             : root.statusLevel === "warning" ? AppTheme.warning
+                             : AppTheme.success
                     }
 
                     Label {
                         text: root.statusText
                         font: AppFont.body
                         color: root.statusLevel === "error" ? AppTheme.error
-                               : root.statusLevel === "warning" ? AppTheme.warning
-                               : AppTheme.success
+                             : root.statusLevel === "warning" ? AppTheme.warning
+                             : AppTheme.success
                         Layout.fillWidth: true
+                        elide: Label.ElideRight
                     }
                 }
             }
@@ -388,13 +412,11 @@ Control {
         // 底部操作区域
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 60
+            Layout.preferredHeight: root.sizeMode === "compact" ? 48 : 60
             color: AppTheme.backgroundTertiary
-            
-            // 底部左右圆角
             radius: AppLayout.radiusLarge
-            
-            // 遮挡上半部分圆角，使之与上面内容无缝连接
+
+            // 遮挡上半部分圆角
             Rectangle {
                 width: parent.width
                 height: parent.radius
@@ -414,7 +436,6 @@ Control {
                     spacing: AppLayout.spacingMedium
                     Layout.fillWidth: true
 
-                    // 圆形进度指示器
                     Rectangle {
                         width: 36
                         height: 36
@@ -460,7 +481,6 @@ Control {
                         }
                     }
 
-                    // 进度条
                     ProgressBar {
                         Layout.fillWidth: true
                         from: 0
@@ -483,7 +503,7 @@ Control {
                 Button {
                     text: root.checking ? "停止" : "自检"
                     enabled: root.online
-                    Layout.preferredWidth: 100
+                    Layout.preferredWidth: root.sizeMode === "compact" ? 80 : 100
                     Material.elevation: root.checking ? 0 : 4
                     highlighted: !root.checking
                     flat: root.checking
@@ -493,4 +513,3 @@ Control {
         }
     }
 }
-

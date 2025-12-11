@@ -5,7 +5,7 @@ project(${PROJECT_NAME} LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2 Concurrent)
 find_package(glog CONFIG REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(redis++ CONFIG REQUIRED)
@@ -21,6 +21,7 @@ qt_standard_project_setup(REQUIRES 6.8)
 file(GLOB_RECURSE PROJECT_SOURCES
     src/*.cpp
     src/client/*.cpp
+    src/watcher/*.cpp
     include/*.h
 )
 
@@ -41,9 +42,11 @@ qt_add_qml_module(${PROJECT_NAME}
         qml/page/Detial.qml
         qml/page/HistoryPage.qml
         
-        qml/components/DeviceCard.qml
-        qml/components/ChargingPileCard.qml
-        qml/components/CCUDetail.qml
+        qml/card/DeviceCard.qml
+        qml/card/PileCard.qml
+
+        qml/detail/PileDetail.qml
+
         qml/components/StatusRow.qml
 
         qml/style/AppLayout.qml
@@ -66,6 +69,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt6::Core                   # Qt 6 核心库
     Qt6::Quick                  # Qt 6 QML/Quick 库
     Qt6::QuickControls2         # Qt 6 Quick Controls 2 扩展控件组件
+    Qt6::Concurrent             # Qt 6 Concurrent 库
     glog::glog                  # Google 的日志库（glog）
     nlohmann_json::nlohmann_json # nlohmann-json，C++ 的 JSON 库
     yaml-cpp                    # yaml-cpp，YAML 解析库
