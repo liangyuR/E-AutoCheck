@@ -37,8 +37,6 @@ QVariant DeviceModel::data(const QModelIndex &index, int role) const {
     return QString::fromStdString(attrs.type);
   case IpAddrRole:
     return QString::fromStdString(attrs.ip_addr);
-  case GunCountRole:
-    return attrs.gun_count;
   case StatusRole:
     // TODO: Return status code or enum value
     return 0;
@@ -63,7 +61,6 @@ QHash<int, QByteArray> DeviceModel::roleNames() const {
   roles[StationNoRole] = "stationNo";
   roles[TypeRole] = "type";
   roles[IpAddrRole] = "ipAddr";
-  roles[GunCountRole] = "gunCount";
   roles[StatusRole] = "status";
   roles[IsOnlineRole] = "isOnline";
   roles[StatusTextRole] = "statusText";
@@ -253,6 +250,50 @@ void DeviceModel::updateSelfCheckProgress(const std::string &equip_no,
     QModelIndex idx = index(row);
     // 通知状态文本和检查状态相关的 Role 发生了变化
     emit dataChanged(idx, idx, {StatusTextRole, IsCheckingRole});
+  }
+}
+
+void DeviceModel::updateOnlineStatus(const std::string &equip_no,
+                                     bool is_online) {
+  int row = -1;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = device_map_.find(equip_no);
+    if (it == device_map_.end()) {
+      LOG(WARNING) << "updateOnlineStatus: device not found, equip_no="
+                   << equip_no;
+      return;
+    }
+
+    // 获取当前状态，仅修改在线字段
+    device::DeviceStatus status = it->second->Status();
+    device::OnlineState new_state =
+        is_online ? device::OnlineState::Online : device::OnlineState::Offline;
+
+    // 只有状态变化时才更新
+    if (status.online_state == new_state) {
+      return;
+    }
+
+    status.online_state = new_state;
+    status.last_update = std::chrono::system_clock::now();
+    it->second->UpdateStatus(status);
+
+    // 查找 row index 以发送信号
+    for (size_t i = 0; i < device_list_.size(); ++i) {
+      if (device_list_[i]->Id() == equip_no) {
+        row = static_cast<int>(i);
+        break;
+      }
+    }
+  }
+
+  if (row >= 0) {
+    QModelIndex idx = index(row);
+    // 仅通知在线状态相关的 Role 发生了变化
+    emit dataChanged(idx, idx, {IsOnlineRole, StatusTextRole});
+    DLOG(INFO) << "Device " << equip_no << " online status changed to: "
+               << (is_online ? "Online" : "Offline");
   }
 }
 

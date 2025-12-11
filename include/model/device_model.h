@@ -12,9 +12,8 @@
 
 namespace qml_model {
 
-// TODO(@liangyu) 这个类其实是 DeviceModel
+// 充电桩设备
 
-// 设备管理器：负责持有和查询 ChargerBoxDevice，同时作为 QML Model
 class DeviceModel : public QAbstractListModel {
   Q_OBJECT
 
@@ -26,7 +25,6 @@ public:
     StationNoRole,
     TypeRole,
     IpAddrRole,
-    GunCountRole,
     StatusRole,
     IsOnlineRole,
     StatusTextRole,
@@ -69,9 +67,11 @@ public:
   void updateSelfCheckProgress(const std::string &equip_no,
                                const std::string &desc, bool is_checking);
 
+  // 更新单个设备的在线状态
+  void updateOnlineStatus(const std::string &equip_no, bool is_online);
+
 private:
   mutable std::mutex mutex_;
-  // 维护两个容器：list 用于 Model 索引访问，map 用于 ID 快速查找
   std::vector<PileDevicePtr> device_list_;
   std::unordered_map<std::string, PileDevicePtr> device_map_; // key: equip_no
 };

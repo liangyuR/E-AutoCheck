@@ -21,6 +21,7 @@ qt_standard_project_setup(REQUIRES 6.8)
 file(GLOB_RECURSE PROJECT_SOURCES
     src/*.cpp
     src/client/*.cpp
+    src/watcher/*.cpp
     include/*.h
 )
 
