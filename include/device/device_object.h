@@ -186,6 +186,7 @@ struct CCUAttributes {
 
   // 设备元信息（同一个记录的所有 CCU 共享）
   std::string device_id;       // 设备ID
+  std::string device_name;     // 设备名称
   std::string device_type;     // 设备类型，例如 PILE / STACK
   std::string last_check_time; // 最近检查时间字符串
 
@@ -205,7 +206,10 @@ struct CCUAttributes {
   friend std::ostream &operator<<(std::ostream &output_stream,
                                   const CCUAttributes &attr) {
     output_stream << "CCUAttributes{"
-                  << "ac_contactor_1=" << attr.ac_contactor_1
+                  << "index=" << attr.index << ", device_id=" << attr.device_id
+                  << ", device_name=" << attr.device_name
+                  << ", device_type=" << attr.device_type
+                  << ", ac_contactor_1=" << attr.ac_contactor_1
                   << ", ac_contactor_2=" << attr.ac_contactor_2
                   << ", parallel_contactor=" << attr.parallel_contactor
                   << ", fan_1=" << attr.fan_1 << ", fan_2=" << attr.fan_2

@@ -13,11 +13,15 @@ class PileModel : public QAbstractListModel {
   Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
   Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
   Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
+  Q_PROPERTY(QString deviceName READ deviceName NOTIFY countChanged)
+  Q_PROPERTY(QString deviceId READ deviceId NOTIFY countChanged)
+  Q_PROPERTY(QString deviceType READ deviceType NOTIFY countChanged)
 
 public:
   enum Roles {
     CcuIndexRole = Qt::UserRole + 1,
     DeviceIdRole,
+    DeviceNameRole,
     DeviceTypeRole,
     LastCheckTimeRole,
     Ac1StuckRole,
@@ -73,6 +77,20 @@ public:
   Q_INVOKABLE void loadFromDevice(const QString &deviceId);
   bool loading() const { return loading_; }
   QString lastError() const { return last_error_; }
+
+  // 便捷属性：从第一项获取设备信息
+  QString deviceName() const {
+    return items_.empty() ? QString()
+                          : QString::fromStdString(items_[0].device_name);
+  }
+  QString deviceId() const {
+    return items_.empty() ? QString()
+                          : QString::fromStdString(items_[0].device_id);
+  }
+  QString deviceType() const {
+    return items_.empty() ? QString()
+                          : QString::fromStdString(items_[0].device_type);
+  }
 
 signals:
   void countChanged();

@@ -17,6 +17,7 @@ Item {
     property Component detailComponent
 
     property string deviceId: ""
+    property string deviceName: PileModel.deviceName
 
     // 当前选中的历史索引
     property int historyIndex: 0

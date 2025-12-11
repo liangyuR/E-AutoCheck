@@ -32,6 +32,8 @@ QVariant PileModel::data(const QModelIndex &index, int role) const {
     return item.index;
   case DeviceIdRole:
     return QString::fromStdString(item.device_id);
+  case DeviceNameRole:
+    return QString::fromStdString(item.device_name);
   case DeviceTypeRole:
     return QString::fromStdString(item.device_type);
   case LastCheckTimeRole:
@@ -109,6 +111,7 @@ QHash<int, QByteArray> PileModel::roleNames() const {
   QHash<int, QByteArray> roles;
   roles[CcuIndexRole] = "ccuIndex";
   roles[DeviceIdRole] = "deviceId";
+  roles[DeviceNameRole] = "deviceName";
   roles[DeviceTypeRole] = "deviceType";
   roles[LastCheckTimeRole] = "lastCheckTime";
   roles[Ac1StuckRole] = "ac1_stuck";

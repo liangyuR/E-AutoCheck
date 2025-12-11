@@ -13,6 +13,13 @@ ApplicationWindow {
     title: "E-AutoCheck"
     visible: true
 
+    // 让 Material 主题跟随 AppTheme.darkMode 动态切换
+    Material.theme: AppTheme.darkMode ? Material.Dark : Material.Light
+    Material.accent: AppTheme.accent
+    Material.primary: AppTheme.primary
+    Material.foreground: AppTheme.foregroundPrimary
+    Material.background: AppTheme.backgroundSecondary
+
     // Load icon font
     FontLoader {
         id: iconFontLoader

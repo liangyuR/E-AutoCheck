@@ -30,8 +30,6 @@ public:
 private:
   void recvMsg(const std::string &message);
 
-  absl::Status processAndSaveResult(const std::string &device_id);
-
   absl::StatusOr<std::vector<device::CCUAttributes>>
   getResultFromRedis(const std::string &device_id);
 

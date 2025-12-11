@@ -141,6 +141,7 @@ DeviceRepo::GetPileItems(const QString &recordId) {
   };
 
   const std::string device_id = get_string(detail_json, "deviceId");
+  const std::string device_name = get_string(detail_json, "deviceName");
   const std::string device_type = get_string(detail_json, "deviceType");
   const auto create_at = rows.front().getString("CreatedAt");
 
@@ -168,6 +169,7 @@ DeviceRepo::GetPileItems(const QString &recordId) {
     device::CCUAttributes attr;
     attr.index = module.value("index", 0);
     attr.device_id = device_id;
+    attr.device_name = device_name;
     attr.device_type = device_type;
     attr.last_check_time = create_at;
 
