@@ -17,6 +17,9 @@ struct HistoryItem {
 class HistoryModel : public QAbstractListModel {
   Q_OBJECT
 
+  Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
+  Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
+
 public:
   enum Roles {
     RecordIdRole = Qt::UserRole + 1,
@@ -38,6 +41,8 @@ public:
   // 给 QML 用的懒加载接口
   Q_INVOKABLE void load(const QString &deviceId, int limit = 10);
   Q_INVOKABLE QVariant get(int row) const;
+  bool loading() const { return loading_; }
+  QString lastError() const { return last_error_; }
   Q_INVOKABLE QString GetFirstItemRecordId() const {
     if (items_.empty())
       return {};
@@ -51,8 +56,10 @@ signals:
 private:
   std::vector<HistoryItem> items_;
   bool loading_{false};
+  QString last_error_;
 
   void setLoading(bool v);
+  void setLastError(const QString &message);
   void setItems(std::vector<HistoryItem> &&items);
 };
 } // namespace qml_model

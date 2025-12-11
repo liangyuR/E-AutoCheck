@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "device/charge_pipe_device.h"
+#include "device/pile_device.h"
 #include <QAbstractListModel>
 #include <absl/status/status.h>
 
@@ -34,7 +34,7 @@ public:
     LastCheckTimeRole
   };
 
-  using DevicePtr = std::shared_ptr<ChargerBoxDevice>;
+  using PileDevicePtr = std::shared_ptr<PileDevice>;
 
   explicit DeviceManager(QObject *parent = nullptr);
   ~DeviceManager() override = default;
@@ -50,16 +50,16 @@ public:
 
   // ============ 设备增删查 ============
   // 从属性创建一台设备并接管其生命周期。
-  DevicePtr addDevice(ChargerBoxAttributes attrs);
+  PileDevicePtr addDevice(const PileAttr &attrs);
 
   // 按业务 ID（equip_no）获取设备，找不到返回 nullptr
-  DevicePtr getDeviceByEquipNo(const std::string &equip_no) const;
+  PileDevicePtr getDeviceByEquipNo(const std::string &equip_no) const;
 
   // 是否存在某设备
   bool hasDevice(const std::string &equip_no) const;
 
   // 返回当前所有设备的快照列表
-  std::vector<DevicePtr> allDevices() const;
+  std::vector<PileDevicePtr> allDevices() const;
 
   // ============ 状态更新便捷接口 ============
   void updateStatus(const std::string &equip_no, const DeviceStatus &status);
@@ -71,8 +71,8 @@ public:
 private:
   mutable std::mutex mutex_;
   // 维护两个容器：list 用于 Model 索引访问，map 用于 ID 快速查找
-  std::vector<DevicePtr> device_list_;
-  std::unordered_map<std::string, DevicePtr> device_map_; // key: equip_no
+  std::vector<PileDevicePtr> device_list_;
+  std::unordered_map<std::string, PileDevicePtr> device_map_; // key: equip_no
 };
 
 } // namespace device

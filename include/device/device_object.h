@@ -219,7 +219,7 @@ struct CCUAttributes {
 constexpr std::string_view kDeviceTypePILE = "PILE";
 constexpr std::string_view kDeviceTypeSTACK = "STACK";
 
-struct ChargerBoxAttributes {
+struct PileAttr {
   int db_id = 0;
 
   std::string station_no; // StationNo：站点编号
@@ -244,8 +244,8 @@ struct ChargerBoxAttributes {
   std::vector<CCUAttributes> ccu_attributes; // CCU 信息，需要从 Redis 中获取
 
   friend std::ostream &operator<<(std::ostream &output_stream,
-                                  const ChargerBoxAttributes &attr) {
-    output_stream << "ChargerBoxAttributes{"
+                                  const PileAttr &attr) {
+    output_stream << "PileAttr{"
                   << "db_id=" << attr.db_id << ", "
                   << "station_no='" << attr.station_no << "', "
                   << "equip_no='" << attr.equip_no << "', "
@@ -261,8 +261,14 @@ struct ChargerBoxAttributes {
                   << "data1=" << attr.data1 << ", "
                   << "data3=" << attr.data3 << ", "
                   << "data2_json='" << attr.data2_json << "', "
-                  << "data4_json='" << attr.data4_json << "'"
-                  << "}";
+                  << "data4_json='" << attr.data4_json << "', "
+                  << "ccu_attributes=[";
+    for (size_t i = 0; i < attr.ccu_attributes.size(); ++i) {
+      if (i > 0)
+        output_stream << ", ";
+      output_stream << attr.ccu_attributes[i];
+    }
+    output_stream << "]}";
     return output_stream;
   }
 };

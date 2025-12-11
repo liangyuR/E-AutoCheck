@@ -11,6 +11,8 @@ namespace qml_model {
 class PileModel : public QAbstractListModel {
   Q_OBJECT
   Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
+  Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
+  Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
 
 public:
   enum Roles {
@@ -69,13 +71,23 @@ public:
    * @param deviceId 设备的唯一标识符
    */
   Q_INVOKABLE void loadFromDevice(const QString &deviceId);
+  bool loading() const { return loading_; }
+  QString lastError() const { return last_error_; }
 
 signals:
   void countChanged();
+  void loadingChanged();
+  void errorChanged(const QString &message);
 
 private:
   std::vector<device::CCUAttributes> items_;
+  bool loading_{false};
+  QString last_error_;
+
   void resetWith(std::vector<device::CCUAttributes> &&items);
+  void setLoading(bool loading);
+  void setLastError(const QString &error);
+  void loadAsync(const QString &key);
 };
 
 } // namespace qml_model

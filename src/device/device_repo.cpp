@@ -6,9 +6,8 @@
 
 namespace device {
 
-ChargerBoxAttributes
-DeviceRepo::ChargerBoxAttributesFromDbRow(const db::DbRow &row) {
-  ChargerBoxAttributes attrs;
+PileAttr DeviceRepo::PileDeviceFromDbRow(const db::DbRow &row) {
+  PileAttr attrs;
   attrs.db_id = row.getInt("ID");
   attrs.station_no = row.getString("StationNo");
   attrs.equip_no = row.getString("EquipNo");
@@ -28,8 +27,7 @@ DeviceRepo::ChargerBoxAttributesFromDbRow(const db::DbRow &row) {
   return attrs;
 }
 
-absl::StatusOr<std::vector<ChargerBoxAttributes>>
-DeviceRepo::GetAllPipeDevices() {
+absl::StatusOr<std::vector<PileAttr>> DeviceRepo::GetAllPipeDevices() {
   auto *client = db::MySqlClient::GetInstance();
   if (client == nullptr) {
     return absl::InternalError("MySQL client not initialized");
@@ -47,10 +45,10 @@ DeviceRepo::GetAllPipeDevices() {
   }
 
   const auto &rows = rows_result.value();
-  std::vector<ChargerBoxAttributes> attrs;
+  std::vector<PileAttr> attrs;
   attrs.reserve(rows.size());
   for (const auto &row : rows) {
-    attrs.push_back(DeviceRepo::ChargerBoxAttributesFromDbRow(row));
+    attrs.push_back(DeviceRepo::PileDeviceFromDbRow(row));
   }
   return attrs;
 }

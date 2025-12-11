@@ -162,10 +162,14 @@ ApplicationWindow {
             target: homeRoot
             function onToItemDetailPageRequested(deviceId) {
               console.log("触发切换到详细页面，当前设备ID：", deviceId)
-              mainStackView.replace(detialPage, {
-                deviceId: deviceId,
+              var page = mainStackView.replace(detialPage, {
                 detailComponent: ccuComponent
               })
+              if (page && page.loadData) {
+                page.loadData(deviceId)
+              } else {
+                console.warn("未能加载详情页，跳过数据初始化")
+              }
             }
           }
         }
@@ -191,7 +195,7 @@ ApplicationWindow {
 
     Component {
         id: ccuComponent
-        CCUDetail {
+        PileDetail {
         }
     }
 

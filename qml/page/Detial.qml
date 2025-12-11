@@ -21,13 +21,18 @@ Item {
     // 当前选中的历史索引
     property int historyIndex: 0
 
-    onDeviceIdChanged: {
-        if (deviceId.length === 16) {
-            HistoryModel.load(deviceId, 10)
-            var firstItemRecordId = HistoryModel.GetFirstItemRecordId()
+    function loadData(id) {
+        if (!id || id.length !== 16) {
+            console.warn("无效的设备ID长度:", id)
+            return
+        }
+        deviceId = id
+        HistoryModel.load(deviceId, 10)
+        var firstItemRecordId = HistoryModel.GetFirstItemRecordId()
+        if (firstItemRecordId && firstItemRecordId.length > 0) {
             PileModel.loadFromDevice(firstItemRecordId)
         } else {
-            console.warn("无效的设备ID长度:", deviceId)
+            console.warn("HistoryModel 没有返回记录，跳过桩数据加载")
         }
     }
 
@@ -118,6 +123,24 @@ Item {
                     console.warn("SelfCheckDetailPage: contentLoader error:", errorString())
                 }
             }
+        }
+
+        BusyIndicator {
+            anchors.centerIn: parent
+            running: HistoryModel.loading || PileModel.loading
+            visible: running
+            z: 2
+        }
+
+        Label {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: AppLayout.marginMedium
+            text: HistoryModel.lastError.length > 0 ? HistoryModel.lastError
+                                                    : PileModel.lastError
+            visible: text.length > 0
+            color: AppTheme.error
+            z: 2
         }
     }
 }

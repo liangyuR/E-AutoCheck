@@ -8,10 +8,10 @@
 
 namespace device {
 // ==== 充电箱设备实例 ====
-class ChargerBoxDevice {
+class PileDevice {
 public:
-  explicit ChargerBoxDevice(ChargerBoxAttributes attrs) {
-    attrs_ = std::move(attrs);
+  explicit PileDevice(const PileAttr &attrs) {
+    attrs_ = attrs;
     status_ = DeviceStatus();
     last_self_check_ = SelfCheckResult();
   }
@@ -20,7 +20,7 @@ public:
   const std::string &Id() const noexcept { return attrs_.equip_no; }
 
   // 只读访问静态属性
-  const ChargerBoxAttributes &Attributes() const noexcept { return attrs_; }
+  const PileAttr &Attributes() const noexcept { return attrs_; }
 
   // 当前状态
   const DeviceStatus &Status() const noexcept { return status_; }
@@ -71,7 +71,7 @@ public:
   }
 
 private:
-  ChargerBoxAttributes attrs_;
+  PileAttr attrs_;
   DeviceStatus status_{};               // 默认 Unknown/Offline 等
   SelfCheckResult last_self_check_{};   // 默认空结果
   std::string current_self_check_desc_; // 当前自检进度描述

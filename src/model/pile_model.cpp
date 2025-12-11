@@ -2,8 +2,11 @@
 #include "device/device_object.h"
 #include "device/device_repo.h"
 
+#include <QFutureWatcher>
 #include <QVariant>
+#include <QtConcurrent>
 #include <glog/logging.h>
+#include <utility>
 
 namespace qml_model {
 
@@ -171,28 +174,63 @@ void PileModel::loadDemo() {
 }
 
 void PileModel::loadFromHistory(const QString &recordId) {
-  auto result = device::DeviceRepo::GetPileItems(recordId);
-  if (!result.ok()) {
-    LOG(ERROR) << "获取历史记录失败: " << result.status().ToString();
-    return;
-  }
-  resetWith(std::move(result.value()));
+  loadAsync(recordId);
 }
 
-void PileModel::loadFromDevice(const QString &deviceId) {
-  auto result = device::DeviceRepo::GetPileItems(deviceId);
-  if (!result.ok()) {
-    LOG(ERROR) << "获取设备最新检查结果失败: " << result.status().ToString();
-    return;
-  }
-  resetWith(std::move(result.value()));
-}
+void PileModel::loadFromDevice(const QString &deviceId) { loadAsync(deviceId); }
 
 void PileModel::resetWith(std::vector<device::CCUAttributes> &&items) {
   beginResetModel();
   items_ = std::move(items);
   endResetModel();
   emit countChanged();
+}
+
+void PileModel::setLoading(bool loading) {
+  if (loading_ == loading)
+    return;
+
+  loading_ = loading;
+  emit loadingChanged();
+}
+
+void PileModel::setLastError(const QString &error) {
+  last_error_ = error;
+  emit errorChanged(error);
+}
+
+void PileModel::loadAsync(const QString &key) {
+  if (loading_) {
+    return;
+  }
+
+  setLastError({});
+  setLoading(true);
+
+  auto *watcher =
+      new QFutureWatcher<absl::StatusOr<std::vector<device::CCUAttributes>>>(
+          this);
+
+  connect(watcher,
+          &QFutureWatcher<
+              absl::StatusOr<std::vector<device::CCUAttributes>>>::finished,
+          this, [this, watcher]() {
+            auto result = watcher->future().result();
+            if (!result.ok()) {
+              setLastError(QString::fromStdString(result.status().ToString()));
+              setLoading(false);
+              watcher->deleteLater();
+              return;
+            }
+
+            auto items = std::move(result).value();
+            resetWith(std::move(items));
+            setLoading(false);
+            watcher->deleteLater();
+          });
+
+  watcher->setFuture(QtConcurrent::run(
+      [key]() { return device::DeviceRepo::GetPileItems(key); }));
 }
 
 } // namespace qml_model

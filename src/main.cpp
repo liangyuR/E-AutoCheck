@@ -7,7 +7,7 @@
 #include "client/mysql_client.h"
 #include "client/rabbitmq_client.h"
 #include "client/redis_client.h"
-#include "db/migration.h"
+#include "db/db_table.h"
 #include "device/device_manager.h"
 #include "device/device_repo.h"
 #include "model/history_model.h"
@@ -26,7 +26,7 @@ absl::Status InitClient() {
   auto mysqlConfig = db::Config::FromYamlFile("config/base.yaml");
   db::MySqlClient::Init(mysqlConfig);
 
-  if (auto status = db::EnsureTablesExist(); !status.ok()) {
+  if (auto status = db::CreateSelfCheckRecordTable(); !status.ok()) {
     LOG(ERROR) << "数据库表初始化失败: " << status.message();
     return status;
   }

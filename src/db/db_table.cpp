@@ -1,4 +1,4 @@
-#include "db/migration.h"
+#include "db/db_table.h"
 
 #include "client/mysql_client.h"
 #include <glog/logging.h>
@@ -6,7 +6,7 @@
 
 namespace db {
 
-absl::Status EnsureTablesExist() {
+absl::Status CreateSelfCheckRecordTable() {
   auto *client = MySqlClient::GetInstance();
   if (client == nullptr) {
     return absl::InternalError("MySQL client not initialized");
@@ -34,12 +34,13 @@ absl::Status EnsureTablesExist() {
 
   auto result = client->executeUpdate(sql);
   if (!result.ok()) {
-    LOG(ERROR) << "Failed to create table self_check_record: "
+    LOG(ERROR) << "Failed to create self_check_record table: "
                << result.status().message();
     return result.status();
   }
 
-  LOG(INFO) << "EnsureTablesExist: self_check_record table checked/created.";
+  LOG(INFO)
+      << "CreateSelfCheckRecordTable: self_check_record table checked/created.";
   return absl::OkStatus();
 }
 

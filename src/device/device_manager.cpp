@@ -14,12 +14,12 @@ int DeviceManager::rowCount(const QModelIndex &parent) const {
 
 QVariant DeviceManager::data(const QModelIndex &index, int role) const {
   if (!index.isValid())
-    return QVariant();
+    return {};
 
   std::lock_guard<std::mutex> lock(mutex_);
   const int row = index.row();
   if (row < 0 || row >= static_cast<int>(device_list_.size()))
-    return QVariant();
+    return {};
 
   const auto &device = device_list_[row];
   const auto &attrs = device->Attributes();
@@ -52,7 +52,7 @@ QVariant DeviceManager::data(const QModelIndex &index, int role) const {
     return QString::fromStdString(device->LastCheckTime());
   }
 
-  return QVariant();
+  return {};
 }
 
 QHash<int, QByteArray> DeviceManager::roleNames() const {
@@ -72,7 +72,7 @@ QHash<int, QByteArray> DeviceManager::roleNames() const {
   return roles;
 }
 
-DeviceManager::DevicePtr DeviceManager::addDevice(ChargerBoxAttributes attrs) {
+DeviceManager::PileDevicePtr DeviceManager::addDevice(const PileAttr &attrs) {
   // 注意：必须在持有锁之前创建 shared_ptr，但锁的范围需要覆盖 map 和 vector
   // 操作 因为 addDevice 可能在后台线程调用，而 UI 线程在读取 QAbstractListModel
   // 的 begin/endInsertRows 只能在 UI 线程调用吗？
@@ -84,7 +84,7 @@ DeviceManager::DevicePtr DeviceManager::addDevice(ChargerBoxAttributes attrs) {
   // 到了主线程）。
 
   DLOG(INFO) << "addDevice: " << attrs;
-  auto device = std::make_shared<ChargerBoxDevice>(std::move(attrs));
+  auto device = std::make_shared<PileDevice>(attrs);
   const auto &key = device->Id();
 
   // 我们需要确保 beginInsertRows/endInsertRows 包裹住数据变更
@@ -145,7 +145,7 @@ DeviceManager::DevicePtr DeviceManager::addDevice(ChargerBoxAttributes attrs) {
   return device;
 }
 
-DeviceManager::DevicePtr
+DeviceManager::PileDevicePtr
 DeviceManager::getDeviceByEquipNo(const std::string &equip_no) const {
   std::lock_guard<std::mutex> lock(mutex_);
   auto it = device_map_.find(equip_no);
@@ -160,7 +160,7 @@ bool DeviceManager::hasDevice(const std::string &equip_no) const {
   return device_map_.find(equip_no) != device_map_.end();
 }
 
-std::vector<DeviceManager::DevicePtr> DeviceManager::allDevices() const {
+std::vector<DeviceManager::PileDevicePtr> DeviceManager::allDevices() const {
   std::lock_guard<std::mutex> lock(mutex_);
   // 直接拷贝 vector
   return device_list_;
