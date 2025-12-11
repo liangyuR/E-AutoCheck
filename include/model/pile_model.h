@@ -105,7 +105,8 @@ private:
   void resetWith(std::vector<device::CCUAttributes> &&items);
   void setLoading(bool loading);
   void setLastError(const QString &error);
-  void loadAsync(const QString &key);
+  void loadAsyncByRecordId(const QString &recordId);
+  void loadAsyncByDeviceId(const QString &deviceId);
 };
 
 } // namespace qml_model

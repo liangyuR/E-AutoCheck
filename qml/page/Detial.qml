@@ -28,13 +28,8 @@ Item {
             return
         }
         deviceId = id
-        HistoryModel.load(deviceId, 10)
-        var firstItemRecordId = HistoryModel.GetFirstItemRecordId()
-        if (firstItemRecordId && firstItemRecordId.length > 0) {
-            PileModel.loadFromDevice(firstItemRecordId)
-        } else {
-            console.warn("HistoryModel 没有返回记录，跳过桩数据加载")
-        }
+        // 直接通过 deviceId 加载最新的检查记录
+        PileModel.loadFromDevice(deviceId)
     }
 
     // =========================
@@ -128,7 +123,7 @@ Item {
 
         BusyIndicator {
             anchors.centerIn: parent
-            running: HistoryModel.loading || PileModel.loading
+            running: PileModel.loading
             visible: running
             z: 2
         }
@@ -137,8 +132,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: AppLayout.marginMedium
-            text: HistoryModel.lastError.length > 0 ? HistoryModel.lastError
-                                                    : PileModel.lastError
+            text: PileModel.lastError
             visible: text.length > 0
             color: AppTheme.error
             z: 2

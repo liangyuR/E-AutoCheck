@@ -19,6 +19,16 @@ public:
   static absl::StatusOr<std::vector<device::CCUAttributes>>
   GetPileItems(const QString &recordId);
 
+  /**
+   * @brief 通过设备ID获取最新的检查记录详情
+   *
+   * 先查询该设备最新的检查记录ID，然后获取其详细的 CCU 模块数据。
+   * @param deviceId 设备的唯一标识符 (EquipNo)
+   * @return 最新检查记录的 CCU 属性列表，若无记录则返回空列表
+   */
+  static absl::StatusOr<std::vector<device::CCUAttributes>>
+  GetLatestPileItems(const QString &deviceId);
+
 private:
   static PileAttr PileDeviceFromDbRow(const db::DbRow &row);
 };

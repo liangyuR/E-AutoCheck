@@ -242,4 +242,31 @@ DeviceRepo::GetPileItems(const QString &recordId) {
   return attributes;
 }
 
+absl::StatusOr<std::vector<device::CCUAttributes>>
+DeviceRepo::GetLatestPileItems(const QString &deviceId) {
+  auto *client = db::MySqlClient::GetInstance();
+  if (client == nullptr) {
+    return absl::InternalError("MySQL client not initialized");
+  }
+
+  // 查询该设备最新的检查记录ID
+  auto rows_result = client->executeQuery("SELECT ID FROM self_check_record "
+                                          "WHERE EquipNo = ? "
+                                          "ORDER BY CreatedAt DESC LIMIT 1",
+                                          {deviceId.toStdString()});
+
+  if (!rows_result.ok()) {
+    return rows_result.status();
+  }
+
+  const auto &rows = rows_result.value();
+  if (rows.empty()) {
+    // 设备没有检查记录，返回空列表
+    return std::vector<device::CCUAttributes>{};
+  }
+
+  const auto recordId = QString::fromStdString(rows.front().getString("ID"));
+  return GetPileItems(recordId);
+}
+
 } // namespace device

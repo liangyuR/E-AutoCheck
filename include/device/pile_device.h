@@ -10,49 +10,15 @@ namespace device {
 // ==== 充电箱设备实例 ====
 class PileDevice {
 public:
-  explicit PileDevice(const PileAttr &attrs) {
-    attrs_ = attrs;
-    status_ = DeviceStatus();
-    last_self_check_ = SelfCheckResult();
-  }
+  explicit PileDevice(const PileAttr &attrs);
+  ~PileDevice() = default;
 
-  // 业务上的唯一标识：优先使用 equip_no
   const std::string &Id() const noexcept { return attrs_.equip_no; }
-
-  // 只读访问静态属性
   const PileAttr &Attributes() const noexcept { return attrs_; }
-
-  // 当前状态
   const DeviceStatus &Status() const noexcept { return status_; }
   const SelfCheckResult &LastSelfCheck() const noexcept {
     return last_self_check_;
   }
-
-  // 更新状态（由 DeviceManager / SelfCheckManager 调用）
-  void UpdateStatus(const DeviceStatus &status) {} // TODO
-  void UpdateSelfCheck(const SelfCheckResult &result) {
-    last_self_check_ = result;
-    // 更新最后自检时间字符串
-    if (!result.last_check_time_str.empty()) {
-      last_check_time_str_ = result.last_check_time_str;
-    } else {
-      // 如果没有字符串时间，从 finish_time 转换
-      if (result.finish_time.time_since_epoch().count() > 0) {
-        auto time_t = std::chrono::system_clock::to_time_t(result.finish_time);
-        std::ostringstream oss;
-        oss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
-        last_check_time_str_ = oss.str();
-      }
-    }
-  }
-
-  // 更新自检进度（由 SelfCheckManager 通过 DeviceManager 调用）
-  void UpdateSelfCheckProgress(const std::string &desc, bool is_checking) {
-    current_self_check_desc_ = desc;
-    is_self_checking_ = is_checking;
-  }
-
-  // 获取当前自检状态
   const std::string &CurrentSelfCheckDesc() const noexcept {
     return current_self_check_desc_;
   }
@@ -61,13 +27,15 @@ public:
     return last_check_time_str_;
   }
 
+  void UpdateStatus(const DeviceStatus &status) { status_ = status; }
+  void UpdateSelfCheck(const SelfCheckResult &result);
+  void UpdateSelfCheckProgress(const std::string &desc, bool is_checking);
+
   // 一些便捷判断接口（具体逻辑在 .cpp 中实现）
-  bool IsOnline() const {
-    return true; // TODO
-  }
+  bool IsOnline() const { return status_.online_state == OnlineState::Online; }
 
   bool HasCriticalFault() const {
-    return false; // TODO
+    return status_.fault_level == FaultLevel::Critical;
   }
 
 private:

@@ -177,10 +177,12 @@ void PileModel::loadDemo() {
 }
 
 void PileModel::loadFromHistory(const QString &recordId) {
-  loadAsync(recordId);
+  loadAsyncByRecordId(recordId);
 }
 
-void PileModel::loadFromDevice(const QString &deviceId) { loadAsync(deviceId); }
+void PileModel::loadFromDevice(const QString &deviceId) {
+  loadAsyncByDeviceId(deviceId);
+}
 
 void PileModel::resetWith(std::vector<device::CCUAttributes> &&items) {
   beginResetModel();
@@ -202,7 +204,7 @@ void PileModel::setLastError(const QString &error) {
   emit errorChanged(error);
 }
 
-void PileModel::loadAsync(const QString &key) {
+void PileModel::loadAsyncByRecordId(const QString &recordId) {
   if (loading_) {
     return;
   }
@@ -233,7 +235,42 @@ void PileModel::loadAsync(const QString &key) {
           });
 
   watcher->setFuture(QtConcurrent::run(
-      [key]() { return device::DeviceRepo::GetPileItems(key); }));
+      [recordId]() { return device::DeviceRepo::GetPileItems(recordId); }));
+}
+
+void PileModel::loadAsyncByDeviceId(const QString &deviceId) {
+  if (loading_) {
+    return;
+  }
+
+  setLastError({});
+  setLoading(true);
+
+  auto *watcher =
+      new QFutureWatcher<absl::StatusOr<std::vector<device::CCUAttributes>>>(
+          this);
+
+  connect(watcher,
+          &QFutureWatcher<
+              absl::StatusOr<std::vector<device::CCUAttributes>>>::finished,
+          this, [this, watcher]() {
+            auto result = watcher->future().result();
+            if (!result.ok()) {
+              setLastError(QString::fromStdString(result.status().ToString()));
+              setLoading(false);
+              watcher->deleteLater();
+              return;
+            }
+
+            auto items = std::move(result).value();
+            resetWith(std::move(items));
+            setLoading(false);
+            watcher->deleteLater();
+          });
+
+  watcher->setFuture(QtConcurrent::run([deviceId]() {
+    return device::DeviceRepo::GetLatestPileItems(deviceId);
+  }));
 }
 
 } // namespace qml_model
