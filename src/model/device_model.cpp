@@ -1,18 +1,18 @@
-#include "device/device_manager.h"
+#include "model/device_model.h"
 #include <glog/logging.h>
 
-namespace device {
+namespace qml_model {
 
-DeviceManager::DeviceManager(QObject *parent) : QAbstractListModel(parent) {}
+DeviceModel::DeviceModel(QObject *parent) : QAbstractListModel(parent) {}
 
-int DeviceManager::rowCount(const QModelIndex &parent) const {
+int DeviceModel::rowCount(const QModelIndex &parent) const {
   if (parent.isValid())
     return 0;
   std::lock_guard<std::mutex> lock(mutex_);
   return static_cast<int>(device_list_.size());
 }
 
-QVariant DeviceManager::data(const QModelIndex &index, int role) const {
+QVariant DeviceModel::data(const QModelIndex &index, int role) const {
   if (!index.isValid())
     return {};
 
@@ -55,7 +55,7 @@ QVariant DeviceManager::data(const QModelIndex &index, int role) const {
   return {};
 }
 
-QHash<int, QByteArray> DeviceManager::roleNames() const {
+QHash<int, QByteArray> DeviceModel::roleNames() const {
   QHash<int, QByteArray> roles;
   roles[NameRole] = "name";
   roles[NameEnRole] = "nameEn";
@@ -72,7 +72,8 @@ QHash<int, QByteArray> DeviceManager::roleNames() const {
   return roles;
 }
 
-DeviceManager::PileDevicePtr DeviceManager::addDevice(const PileAttr &attrs) {
+DeviceModel::PileDevicePtr
+DeviceModel::addDevice(const device::PileAttr &attrs) {
   // 注意：必须在持有锁之前创建 shared_ptr，但锁的范围需要覆盖 map 和 vector
   // 操作 因为 addDevice 可能在后台线程调用，而 UI 线程在读取 QAbstractListModel
   // 的 begin/endInsertRows 只能在 UI 线程调用吗？
@@ -84,7 +85,7 @@ DeviceManager::PileDevicePtr DeviceManager::addDevice(const PileAttr &attrs) {
   // 到了主线程）。
 
   DLOG(INFO) << "addDevice: " << attrs;
-  auto device = std::make_shared<PileDevice>(attrs);
+  auto device = std::make_shared<device::PileDevice>(attrs);
   const auto &key = device->Id();
 
   // 我们需要确保 beginInsertRows/endInsertRows 包裹住数据变更
@@ -111,7 +112,7 @@ DeviceManager::PileDevicePtr DeviceManager::addDevice(const PileAttr &attrs) {
           // const_cast 因为 dataChanged 是非 const 的，但在 const
           // 成员函数中不能调？ addDevice 不是 const 的，没问题。
           // 但由于我们手动加了锁，要小心死锁。这里没调外部代码，安全。
-          const_cast<DeviceManager *>(this)->dataChanged(idx, idx);
+          const_cast<DeviceModel *>(this)->dataChanged(idx, idx);
           LOG(INFO) << "Device updated: " << key;
           return device;
         }
@@ -145,8 +146,8 @@ DeviceManager::PileDevicePtr DeviceManager::addDevice(const PileAttr &attrs) {
   return device;
 }
 
-DeviceManager::PileDevicePtr
-DeviceManager::getDeviceByEquipNo(const std::string &equip_no) const {
+DeviceModel::PileDevicePtr
+DeviceModel::getDeviceByEquipNo(const std::string &equip_no) const {
   std::lock_guard<std::mutex> lock(mutex_);
   auto it = device_map_.find(equip_no);
   if (it == device_map_.end()) {
@@ -155,19 +156,19 @@ DeviceManager::getDeviceByEquipNo(const std::string &equip_no) const {
   return it->second;
 }
 
-bool DeviceManager::hasDevice(const std::string &equip_no) const {
+bool DeviceModel::hasDevice(const std::string &equip_no) const {
   std::lock_guard<std::mutex> lock(mutex_);
   return device_map_.find(equip_no) != device_map_.end();
 }
 
-std::vector<DeviceManager::PileDevicePtr> DeviceManager::allDevices() const {
+std::vector<DeviceModel::PileDevicePtr> DeviceModel::allDevices() const {
   std::lock_guard<std::mutex> lock(mutex_);
   // 直接拷贝 vector
   return device_list_;
 }
 
-void DeviceManager::updateStatus(const std::string &equip_no,
-                                 const DeviceStatus &status) {
+void DeviceModel::updateStatus(const std::string &equip_no,
+                               const device::DeviceStatus &status) {
   // 这里需要通知 Model 更新
   int row = -1;
   {
@@ -196,8 +197,8 @@ void DeviceManager::updateStatus(const std::string &equip_no,
   }
 }
 
-void DeviceManager::updateSelfCheck(const std::string &equip_no,
-                                    const SelfCheckResult &result) {
+void DeviceModel::updateSelfCheck(const std::string &equip_no,
+                                  const device::SelfCheckResult &result) {
   int row = -1;
   {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -225,9 +226,9 @@ void DeviceManager::updateSelfCheck(const std::string &equip_no,
   }
 }
 
-void DeviceManager::updateSelfCheckProgress(const std::string &equip_no,
-                                            const std::string &desc,
-                                            bool is_checking) {
+void DeviceModel::updateSelfCheckProgress(const std::string &equip_no,
+                                          const std::string &desc,
+                                          bool is_checking) {
   int row = -1;
   {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -255,4 +256,4 @@ void DeviceManager::updateSelfCheckProgress(const std::string &equip_no,
   }
 }
 
-} // namespace device
+} // namespace qml_model

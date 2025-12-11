@@ -9,8 +9,8 @@
 #include <qtmetamacros.h>
 #include <vector>
 
-namespace device {
-class DeviceManager;
+namespace qml_model {
+class DeviceModel;
 }
 
 namespace EAutoCheck {
@@ -19,7 +19,7 @@ class CheckManager : public QObject {
   Q_OBJECT
 
 public:
-  explicit CheckManager(device::DeviceManager *device_manager,
+  explicit CheckManager(qml_model::DeviceModel *device_model,
                         QObject *parent = nullptr);
   ~CheckManager() override;
 
@@ -46,7 +46,7 @@ private:
   };
 
   std::atomic<uint64_t> sequence_index_{1};
-  device::DeviceManager *device_manager_;
+  qml_model::DeviceModel *device_model_;
 };
 
 } // namespace EAutoCheck

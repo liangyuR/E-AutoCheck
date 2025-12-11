@@ -8,8 +8,8 @@
 #include "client/rabbitmq_client.h"
 #include "client/redis_client.h"
 #include "db/db_table.h"
-#include "device/device_manager.h"
 #include "device/device_repo.h"
+#include "model/device_model.h"
 #include "model/history_model.h"
 #include "model/pile_model.h"
 #include "utils/log_init.h"
@@ -41,9 +41,9 @@ absl::Status InitClient() {
   return absl::OkStatus();
 }
 
-void AsyncLoadDevices(device::DeviceManager *device_manager,
+void AsyncLoadDevices(qml_model::DeviceModel *device_model,
                       EAutoCheck::CheckManager *check_manager) {
-  std::thread([device_manager, check_manager]() {
+  std::thread([device_model, check_manager]() {
     if (auto status = InitClient(); !status.ok()) {
       LOG(ERROR) << "初始化客户端失败: " << status.message();
       return;
@@ -61,9 +61,9 @@ void AsyncLoadDevices(device::DeviceManager *device_manager,
       const auto &devices = devices_result.value();
       LOG(INFO) << "加载设备成功，共 " << devices.size() << " 个";
 
-      QMetaObject::invokeMethod(device_manager, [device_manager, devices]() {
+      QMetaObject::invokeMethod(device_model, [device_model, devices]() {
         for (const auto &device : devices) {
-          device_manager->addDevice(device);
+          device_model->addDevice(device);
         }
         LOG(INFO) << "已将设备添加到管理器";
       });
@@ -80,11 +80,10 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  auto *device_manager = new device::DeviceManager(&app);
-  qmlRegisterSingletonInstance("EAutoCheck", 1, 0, "DeviceManager",
-                               device_manager);
+  auto *device_model = new qml_model::DeviceModel(&app);
+  qmlRegisterSingletonInstance("EAutoCheck", 1, 0, "DeviceModel", device_model);
 
-  auto *check_manager = new EAutoCheck::CheckManager(device_manager, &app);
+  auto *check_manager = new EAutoCheck::CheckManager(device_model, &app);
   qmlRegisterSingletonInstance("EAutoCheck", 1, 0, "CheckManager",
                                check_manager);
 
@@ -101,7 +100,7 @@ int main(int argc, char *argv[]) {
   if (engine.rootObjects().isEmpty())
     return -1;
 
-  AsyncLoadDevices(device_manager, check_manager);
+  AsyncLoadDevices(device_model, check_manager);
 
   int ret = QGuiApplication::exec();
   db::MySqlClient::Shutdown();

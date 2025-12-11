@@ -35,7 +35,7 @@ Page {
                 spacing: AppLayout.spacingMedium
 
                 Repeater {
-                    model: DeviceManager
+                    model: DeviceModel
 
                     Loader {
                         id: cardLoader
@@ -62,7 +62,6 @@ Page {
                         Binding {
                             target: cardLoader.item
                             property: "statusText"
-                            // 使用 DeviceManager 提供的状态文本，如果没有则使用默认值
                             value: model.statusText || (model.isOnline ? "正常" : "离线")
                             when: cardLoader.item !== null
                         }

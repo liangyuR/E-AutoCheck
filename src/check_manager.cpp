@@ -14,14 +14,14 @@
 #include "client/mysql_client.h"
 #include "client/rabbitmq_client.h"
 #include "client/redis_client.h"
-#include "device/device_manager.h"
 #include "device/device_object.h"
+#include "model/device_model.h"
 #include "utils/convert.h"
 
 namespace EAutoCheck {
-CheckManager::CheckManager(device::DeviceManager *device_manager,
+CheckManager::CheckManager(qml_model::DeviceModel *device_model,
                            QObject *parent)
-    : QObject(parent), device_manager_(device_manager) {}
+    : QObject(parent), device_model_(device_model) {}
 
 CheckManager::~CheckManager() = default;
 
@@ -122,8 +122,8 @@ void CheckManager::recvMsg(const std::string &message) {
                  << " 状态=" << state << " 结果=" << result
                  << " 检测中=" << is_checking << " 已完成=" << is_finished;
 
-      if (device_manager_ != nullptr) {
-        device_manager_->updateSelfCheckProgress(pile_id, desc, is_checking);
+      if (device_model_ != nullptr) {
+        device_model_->updateSelfCheckProgress(pile_id, desc, is_checking);
       }
     }
     // 处理最终结果格式 (ReqType)
@@ -160,9 +160,9 @@ void CheckManager::recvMsg(const std::string &message) {
       }
 
       // Update UI
-      if (device_manager_ != nullptr) {
+      if (device_model_ != nullptr) {
         // 更新进度为完成
-        device_manager_->updateSelfCheckProgress(pile_id, final_desc, false);
+        device_model_->updateSelfCheckProgress(pile_id, final_desc, false);
 
         // 构建并更新最终结果
         device::SelfCheckResult check_result;
@@ -183,7 +183,7 @@ void CheckManager::recvMsg(const std::string &message) {
           check_result.status = device::SelfCheckStatus::Failed;
         }
 
-        device_manager_->updateSelfCheck(pile_id, check_result);
+        device_model_->updateSelfCheck(pile_id, check_result);
       }
     } else {
       LOG(WARNING) << "消息格式无效，缺少 NoticeType 或 ReqType";
@@ -199,11 +199,11 @@ void CheckManager::recvMsg(const std::string &message) {
 
 absl::StatusOr<std::vector<device::CCUAttributes>>
 CheckManager::getResultFromRedis(const std::string &device_id) {
-  if (device_manager_ == nullptr) {
-    return absl::InternalError("DeviceManager is not initialized");
+  if (device_model_ == nullptr) {
+    return absl::InternalError("DeviceModel is not initialized");
   }
 
-  auto device = device_manager_->getDeviceByEquipNo(device_id);
+  auto device = device_model_->getDeviceByEquipNo(device_id);
   if (!device) {
     return absl::NotFoundError("Device not found: " + device_id);
   }
@@ -257,11 +257,11 @@ absl::Status CheckManager::saveResultToMysql(const std::string &device_id) {
     return absl::InternalError("MySQL client not initialized");
   }
 
-  if (device_manager_ == nullptr) {
-    return absl::InternalError("DeviceManager is not initialized");
+  if (device_model_ == nullptr) {
+    return absl::InternalError("DeviceModel is not initialized");
   }
 
-  auto device = device_manager_->getDeviceByEquipNo(device_id);
+  auto device = device_model_->getDeviceByEquipNo(device_id);
   if (!device) {
     return absl::NotFoundError("Device not found: " + device_id);
   }
@@ -393,11 +393,11 @@ absl::Status CheckManager::saveResultToMysql(const std::string &device_id) {
 
 absl::StatusOr<std::vector<std::string>>
 CheckManager::getRedisKey(const std::string &device_id) {
-  if (device_manager_ == nullptr) {
-    return absl::InternalError("DeviceManager is not initialized");
+  if (device_model_ == nullptr) {
+    return absl::InternalError("DeviceModel is not initialized");
   }
 
-  auto device = device_manager_->getDeviceByEquipNo(device_id);
+  auto device = device_model_->getDeviceByEquipNo(device_id);
   if (!device) {
     LOG(WARNING) << "Device not found: " << device_id;
     return absl::NotFoundError("Device not found: " + device_id);

@@ -10,12 +10,12 @@
 #include <QAbstractListModel>
 #include <absl/status/status.h>
 
-namespace device {
+namespace qml_model {
 
 // TODO(@liangyu) 这个类其实是 DeviceModel
 
 // 设备管理器：负责持有和查询 ChargerBoxDevice，同时作为 QML Model
-class DeviceManager : public QAbstractListModel {
+class DeviceModel : public QAbstractListModel {
   Q_OBJECT
 
 public:
@@ -34,13 +34,13 @@ public:
     LastCheckTimeRole
   };
 
-  using PileDevicePtr = std::shared_ptr<PileDevice>;
+  using PileDevicePtr = std::shared_ptr<device::PileDevice>;
 
-  explicit DeviceManager(QObject *parent = nullptr);
-  ~DeviceManager() override = default;
+  explicit DeviceModel(QObject *parent = nullptr);
+  ~DeviceModel() override = default;
 
-  DeviceManager(const DeviceManager &) = delete;
-  DeviceManager &operator=(const DeviceManager &) = delete;
+  DeviceModel(const DeviceModel &) = delete;
+  DeviceModel &operator=(const DeviceModel &) = delete;
 
   // ============ QAbstractListModel 接口 ============
   int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -50,7 +50,7 @@ public:
 
   // ============ 设备增删查 ============
   // 从属性创建一台设备并接管其生命周期。
-  PileDevicePtr addDevice(const PileAttr &attrs);
+  PileDevicePtr addDevice(const device::PileAttr &attrs);
 
   // 按业务 ID（equip_no）获取设备，找不到返回 nullptr
   PileDevicePtr getDeviceByEquipNo(const std::string &equip_no) const;
@@ -62,9 +62,10 @@ public:
   std::vector<PileDevicePtr> allDevices() const;
 
   // ============ 状态更新便捷接口 ============
-  void updateStatus(const std::string &equip_no, const DeviceStatus &status);
+  void updateStatus(const std::string &equip_no,
+                    const device::DeviceStatus &status);
   void updateSelfCheck(const std::string &equip_no,
-                       const SelfCheckResult &result);
+                       const device::SelfCheckResult &result);
   void updateSelfCheckProgress(const std::string &equip_no,
                                const std::string &desc, bool is_checking);
 
@@ -75,4 +76,4 @@ private:
   std::unordered_map<std::string, PileDevicePtr> device_map_; // key: equip_no
 };
 
-} // namespace device
+} // namespace qml_model
