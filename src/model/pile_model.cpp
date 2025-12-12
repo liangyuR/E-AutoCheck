@@ -16,49 +16,26 @@ PileModel::PileModel(QObject *parent) : QAbstractListModel(parent) {}
 int PileModel::rowCount(const QModelIndex &parent) const {
   if (parent.isValid())
     return 0;
-
-  int total = 0;
-  for (const auto &pile : items_) {
-    total += static_cast<int>(pile.ccu_attributes.size());
-  }
-  return total;
-}
-
-// 根据 row 找到对应的 (PileAttributes, CCUAttributes)
-std::pair<const device::PileAttributes *, const device::CCUAttributes *>
-PileModel::itemAt(int row) const {
-  int offset = 0;
-  for (const auto &pile : items_) {
-    const int ccu_count = static_cast<int>(pile.ccu_attributes.size());
-    if (row < offset + ccu_count) {
-      return {&pile, &pile.ccu_attributes[row - offset]};
-    }
-    offset += ccu_count;
-  }
-  return {nullptr, nullptr};
+  return static_cast<int>(pile_attrs_.ccu_attributes.size());
 }
 
 QVariant PileModel::data(const QModelIndex &index, int role) const {
   if (!index.isValid())
-    return QVariant();
+    return {};
 
   const int row = index.row();
-  auto [pile, ccu] = itemAt(row);
-  if (pile == nullptr || ccu == nullptr) {
-    return QVariant();
-  }
-
+  const auto *ccu = &pile_attrs_.ccu_attributes[row];
   switch (role) {
   case CcuIndexRole:
     return ccu->index;
   case DeviceIdRole:
-    return QString::fromStdString(pile->equip_no);
+    return QString::fromStdString(pile_attrs_.equip_no);
   case DeviceNameRole:
-    return QString::fromStdString(pile->name);
+    return QString::fromStdString(pile_attrs_.name);
   case DeviceTypeRole:
-    return QString::fromStdString(device::DeviceTypeToString(pile->type));
+    return QString::fromStdString(device::DeviceTypeToString(pile_attrs_.type));
   case LastCheckTimeRole:
-    return QString::fromStdString(pile->last_check_time);
+    return QString::fromStdString(pile_attrs_.last_check_time);
   case Ac1StuckRole:
     return ccu->ac_contactor_1.contactor1_stuck;
   case Ac1RefuseRole:
@@ -124,7 +101,7 @@ QVariant PileModel::data(const QModelIndex &index, int role) const {
   case GunBAux24Role:
     return ccu->gun_b.aux_power_24v;
   default:
-    return QVariant();
+    return {};
   }
 }
 
@@ -192,9 +169,7 @@ void PileModel::loadDemo() {
   second.gun_b.unlocked = true;
   demo_pile.ccu_attributes.push_back(second);
 
-  std::vector<device::PileAttributes> items;
-  items.push_back(std::move(demo_pile));
-  resetWith(std::move(items));
+  resetWith(demo_pile);
 }
 
 void PileModel::loadFromHistory(const QString &recordId) {
@@ -205,9 +180,9 @@ void PileModel::loadFromDevice(const QString &deviceId) {
   loadAsyncByDeviceId(deviceId);
 }
 
-void PileModel::resetWith(std::vector<device::PileAttributes> &&items) {
+void PileModel::resetWith(device::PileAttributes pile_attrs) {
   beginResetModel();
-  items_ = std::move(items);
+  pile_attrs_ = std::move(pile_attrs);
   endResetModel();
   emit countChanged();
 }
@@ -247,9 +222,7 @@ void PileModel::loadAsyncByRecordId(const QString &recordId) {
               return;
             }
 
-            std::vector<device::PileAttributes> items;
-            items.push_back(std::move(result).value());
-            resetWith(std::move(items));
+            resetWith(result.value());
             setLoading(false);
             watcher->deleteLater();
           });
@@ -280,9 +253,7 @@ void PileModel::loadAsyncByDeviceId(const QString &deviceId) {
               return;
             }
 
-            std::vector<device::PileAttributes> items;
-            items.push_back(std::move(result).value());
-            resetWith(std::move(items));
+            resetWith(result.value());
             setLoading(false);
             watcher->deleteLater();
           });

@@ -11,8 +11,15 @@ namespace device {
 // 充电桩设备
 class PileDevice {
 public:
-  explicit PileDevice(const DeviceAttr &attrs)
-      : attrs_(static_cast<const PileAttributes &>(attrs)) {}
+  // 从 DeviceAttr 构造（拷贝基类字段到 PileAttributes）
+  explicit PileDevice(const DeviceAttr &attrs) {
+    // PileAttributes 继承自 DeviceAttr，先拷贝基类部分
+    static_cast<DeviceAttr &>(attrs_) = attrs;
+  }
+
+  // 从 PileAttributes 构造（完整拷贝）
+  explicit PileDevice(const PileAttributes &attrs) : attrs_(attrs) {}
+
   ~PileDevice() = default;
 
   const PileAttributes &Attributes() const noexcept { return attrs_; }

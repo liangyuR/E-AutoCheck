@@ -68,6 +68,8 @@ public:
   QHash<int, QByteArray> roleNames() const override;
 
   Q_INVOKABLE void loadDemo();
+
+  // 一次只会加载一条记录
   Q_INVOKABLE void loadFromHistory(const QString &recordId);
 
   /**
@@ -80,18 +82,17 @@ public:
   bool loading() const { return loading_; }
   QString lastError() const { return last_error_; }
 
-  // 便捷属性：从第一项获取设备信息
   QString deviceName() const {
-    return items_.empty() ? QString() : QString::fromStdString(items_[0].name);
+    return QString::fromStdString(pile_attrs_.name);
   }
   QString deviceId() const {
-    return items_.empty() ? QString()
-                          : QString::fromStdString(items_[0].equip_no);
+    return QString::fromStdString(pile_attrs_.equip_no);
   }
   QString deviceType() const {
-    return items_.empty() ? QString()
-                          : QString::fromStdString(
-                                device::DeviceTypeToString(items_[0].type));
+    return QString::fromStdString(device::DeviceTypeToString(pile_attrs_.type));
+  }
+  QString lastCheckTime() const {
+    return QString::fromStdString(pile_attrs_.last_check_time);
   }
 
 signals:
@@ -100,15 +101,11 @@ signals:
   void errorChanged(const QString &message);
 
 private:
-  std::vector<device::PileAttributes> items_;
+  device::PileAttributes pile_attrs_;
   bool loading_{false};
   QString last_error_;
 
-  // 根据 row 找到对应的 (PileAttributes, CCUAttributes)
-  std::pair<const device::PileAttributes *, const device::CCUAttributes *>
-  itemAt(int row) const;
-
-  void resetWith(std::vector<device::PileAttributes> &&items);
+  void resetWith(device::PileAttributes pile_attrs);
   void setLoading(bool loading);
   void setLastError(const QString &error);
   void loadAsyncByRecordId(const QString &recordId);

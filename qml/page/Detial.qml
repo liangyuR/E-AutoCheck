@@ -17,8 +17,6 @@ Item {
     property Component detailComponent
 
     property string deviceId: ""
-    property string deviceName: PileModel.deviceName
-
     // 当前选中的历史索引
     property int historyIndex: 0
 
@@ -28,8 +26,7 @@ Item {
             return
         }
         deviceId = id
-        // 直接通过 deviceId 加载最新的检查记录
-        PileModel.loadFromDevice(deviceId)
+        PileModel.loadFromDevice(id)
     }
 
     // =========================
@@ -65,20 +62,10 @@ Item {
                 onClicked: root.backRequested()
             }
 
-            // 标题：设备名称 + 设备ID
-            Label {
-                id: titleLabel
+            Item {
                 Layout.fillWidth: true
-
-                text: qsTr("设备名称：%1  设备ID：%2")
-                          .arg(deviceName.length > 0 ? deviceName : qsTr("未知"))
-                          .arg(deviceId.length > 0 ? deviceId : qsTr("未知"))
-
-                elide: Text.ElideRight
-                horizontalAlignment: Text.AlignLeft
-                verticalAlignment: Text.AlignVCenter
-                font: AppFont.title
-                color: AppTheme.foregroundPrimary
+                Layout.preferredHeight: AppLayout.touchButtonHeight
+                Layout.preferredWidth: AppLayout.touchButtonHeight
             }
 
             Button {
