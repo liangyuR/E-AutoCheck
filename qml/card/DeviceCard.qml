@@ -45,7 +45,7 @@ Control {
     implicitHeight: sizeMode === "compact" ? 180 
                   : sizeMode === "standard" ? 240 
                   : 300
-    padding: 0
+    padding: 3
 
     // ========== 长按检测 ==========
     MouseArea {
@@ -112,10 +112,10 @@ Control {
         id: cardBackground
         radius: AppLayout.radiusLarge
         color: AppTheme.backgroundSecondary
-        border.width: root.statusLevel === "error" ? 2 : 1
-        border.color: root.statusLevel === "error" ? AppTheme.error
-                    : root.statusLevel === "warning" ? AppTheme.warning
-                    : AppTheme.borderLight
+        // border.width: root.statusLevel === "error" ? 2 : 1
+        // border.color: root.statusLevel === "error" ? AppTheme.error
+        //             : root.statusLevel === "warning" ? AppTheme.warning
+        //             : AppTheme.borderLight
 
         layer.enabled: true
         layer.effect: DropShadow {
@@ -262,26 +262,30 @@ Control {
 
                 // 在线状态徽章
                 Rectangle {
-                    width: root.sizeMode === "compact" ? 56 : 68
-                    height: root.sizeMode === "compact" ? 24 : 28
+                    width: root.sizeMode === "compact" ? 72 : root.sizeMode === "standard" ? 96 : 120
+                    height: root.sizeMode === "compact" ? 28 : root.sizeMode === "standard" ? 36 : 44
                     radius: height / 2
                     color: Qt.rgba(255, 255, 255, 0.25)
                     Layout.alignment: Qt.AlignVCenter
 
                     RowLayout {
                         anchors.centerIn: parent
-                        spacing: 4
+                        spacing: root.sizeMode === "compact" ? 6 : root.sizeMode === "standard" ? 8 : 10
 
                         Rectangle {
-                            width: 8
-                            height: 8
-                            radius: 4
+                            width: root.sizeMode === "compact" ? 10 : root.sizeMode === "standard" ? 12 : 14
+                            height: width
+                            radius: height / 2
                             color: root.online ? "#4CAF50" : "#F44336"
                         }
 
                         Label {
                             text: root.online ? "在线" : "离线"
-                            font: AppFont.caption
+                            font: Qt.font({
+                                family: AppFont.fontFamily,
+                                pixelSize: root.sizeMode === "compact" ? 10 : root.sizeMode === "standard" ? 12 : 14,
+                                weight: Font.Medium
+                            })
                             color: "white"
                         }
                     }
