@@ -88,8 +88,8 @@ void OnlineStatusWatcher::pollAllDevices() {
 
   for (const auto &device : devices) {
     const auto &attrs = device->Attributes();
-    // 目前只处理充电桩 PILE
-    if (attrs.type != "PILE") {
+    // TODO(@liangyu) 目前只处理充电桩 PILE
+    if (attrs.type != device::DeviceTypes::kPILE) {
       continue;
     }
 

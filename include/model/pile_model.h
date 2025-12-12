@@ -1,9 +1,11 @@
 #pragma once
 
 #include "device/device_object.h"
+#include "device/pile_object.h"
 #include <QAbstractListModel>
 #include <QString>
 #include <qtmetamacros.h>
+#include <utility>
 #include <vector>
 
 namespace qml_model {
@@ -80,16 +82,16 @@ public:
 
   // 便捷属性：从第一项获取设备信息
   QString deviceName() const {
-    return items_.empty() ? QString()
-                          : QString::fromStdString(items_[0].device_name);
+    return items_.empty() ? QString() : QString::fromStdString(items_[0].name);
   }
   QString deviceId() const {
     return items_.empty() ? QString()
-                          : QString::fromStdString(items_[0].device_id);
+                          : QString::fromStdString(items_[0].equip_no);
   }
   QString deviceType() const {
     return items_.empty() ? QString()
-                          : QString::fromStdString(items_[0].device_type);
+                          : QString::fromStdString(
+                                device::DeviceTypeToString(items_[0].type));
   }
 
 signals:
@@ -98,11 +100,15 @@ signals:
   void errorChanged(const QString &message);
 
 private:
-  std::vector<device::CCUAttributes> items_;
+  std::vector<device::PileAttributes> items_;
   bool loading_{false};
   QString last_error_;
 
-  void resetWith(std::vector<device::CCUAttributes> &&items);
+  // 根据 row 找到对应的 (PileAttributes, CCUAttributes)
+  std::pair<const device::PileAttributes *, const device::CCUAttributes *>
+  itemAt(int row) const;
+
+  void resetWith(std::vector<device::PileAttributes> &&items);
   void setLoading(bool loading);
   void setLastError(const QString &error);
   void loadAsyncByRecordId(const QString &recordId);

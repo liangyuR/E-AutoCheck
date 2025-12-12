@@ -44,11 +44,11 @@ absl::Status InitClient() {
 
 // 加载设备的最后检测信息
 void LoadLatestCheckInfo(qml_model::DeviceModel *device_model,
-                         const std::vector<device::PileAttr> &devices) {
+                         const std::vector<device::DeviceAttr> &devices) {
   for (const auto &device_attr : devices) {
     const auto &equip_no = device_attr.equip_no;
-    auto result =
-        device::DeviceRepo::GetLatestPileItems(QString::fromStdString(equip_no));
+    auto result = device::DeviceRepo::GetLatestPileItems(
+        QString::fromStdString(equip_no));
 
     if (!result.ok()) {
       DLOG(WARNING) << "获取设备最后检测信息失败: " << equip_no << ", "
@@ -56,20 +56,20 @@ void LoadLatestCheckInfo(qml_model::DeviceModel *device_model,
       continue;
     }
 
-    const auto &ccu_items = result.value();
-    if (ccu_items.empty()) {
+    const auto &pile_attrs = result.value();
+    if (pile_attrs.ccu_attributes.empty()) {
       DLOG(INFO) << "设备无历史检测记录: " << equip_no;
       continue;
     }
 
     // 构建 SelfCheckResult，主要用于更新最后检测时间
     device::SelfCheckResult check_result;
-    check_result.last_check_time_str = ccu_items.front().last_check_time;
+    check_result.last_check_time_str = pile_attrs.last_check_time;
     check_result.status = device::SelfCheckStatus::Passed; // 有记录说明已完成
 
     // 统计成功/失败数量（简单判断：任何异常状态都算失败）
     int fail_count = 0;
-    for (const auto &ccu : ccu_items) {
+    for (const auto &ccu : pile_attrs.ccu_attributes) {
       // 检查各模块是否有异常
       if (ccu.ac_contactor_1.contactor1_stuck ||
           ccu.ac_contactor_1.contactor1_refuse ||
@@ -84,7 +84,7 @@ void LoadLatestCheckInfo(qml_model::DeviceModel *device_model,
     }
     check_result.fail_count = fail_count;
     check_result.success_count =
-        static_cast<int>(ccu_items.size()) - fail_count;
+        static_cast<int>(pile_attrs.ccu_attributes.size()) - fail_count;
     if (fail_count > 0) {
       check_result.status = device::SelfCheckStatus::Failed;
     }
@@ -116,7 +116,7 @@ void AsyncLoadDevices(qml_model::DeviceModel *device_model,
       return;
     }
 
-    auto devices_result = device::DeviceRepo::GetAllPipeDevices();
+    auto devices_result = device::DeviceRepo::GetAllDevices();
     if (!devices_result.ok()) {
       LOG(ERROR) << "加载设备失败: " << devices_result.status().message();
       return;

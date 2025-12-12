@@ -1,4 +1,5 @@
 #include "model/device_model.h"
+#include "device/device_object.h"
 #include <glog/logging.h>
 
 namespace qml_model {
@@ -27,14 +28,12 @@ QVariant DeviceModel::data(const QModelIndex &index, int role) const {
   switch (role) {
   case NameRole:
     return QString::fromStdString(attrs.name);
-  case NameEnRole:
-    return QString::fromStdString(attrs.name_en);
   case EquipNoRole:
     return QString::fromStdString(attrs.equip_no);
   case StationNoRole:
     return QString::fromStdString(attrs.station_no);
   case TypeRole:
-    return QString::fromStdString(attrs.type);
+    return QString::fromStdString(device::DeviceTypeToString(attrs.type));
   case IpAddrRole:
     return QString::fromStdString(attrs.ip_addr);
   case StatusRole:
@@ -43,11 +42,12 @@ QVariant DeviceModel::data(const QModelIndex &index, int role) const {
   case IsOnlineRole:
     return device->IsOnline();
   case StatusTextRole:
-    return QString::fromStdString(device->CurrentSelfCheckDesc());
+    return QString::fromStdString(
+        attrs.self_check_result.modules.back().message);
   case IsCheckingRole:
-    return device->IsSelfChecking();
+    return attrs.self_check_result.status == device::SelfCheckStatus::Running;
   case LastCheckTimeRole:
-    return QString::fromStdString(device->LastCheckTime());
+    return QString::fromStdString(attrs.self_check_result.last_check_time_str);
   }
 
   return {};
@@ -56,7 +56,6 @@ QVariant DeviceModel::data(const QModelIndex &index, int role) const {
 QHash<int, QByteArray> DeviceModel::roleNames() const {
   QHash<int, QByteArray> roles;
   roles[NameRole] = "name";
-  roles[NameEnRole] = "nameEn";
   roles[EquipNoRole] = "equipNo";
   roles[StationNoRole] = "stationNo";
   roles[TypeRole] = "type";
@@ -70,17 +69,7 @@ QHash<int, QByteArray> DeviceModel::roleNames() const {
 }
 
 DeviceModel::PileDevicePtr
-DeviceModel::addDevice(const device::PileAttr &attrs) {
-  // 注意：必须在持有锁之前创建 shared_ptr，但锁的范围需要覆盖 map 和 vector
-  // 操作 因为 addDevice 可能在后台线程调用，而 UI 线程在读取 QAbstractListModel
-  // 的 begin/endInsertRows 只能在 UI 线程调用吗？
-  // 不，它们发出的信号是线程安全的，但是 Model 的内部数据结构必须受保护。
-  // 实际上，如果是在后台线程调用 beginInsertRows，信号连接到 UI
-  // 可能会有跨线程问题。 但 Qt
-  // 的信号槽机制处理了跨线程连接（QueuedConnection）。 最安全的做法是确保
-  // addDevice 也是在主线程调用的（现在的 main.cpp 逻辑正是如此，invokeMethod
-  // 到了主线程）。
-
+DeviceModel::addDevice(const device::DeviceAttr &attrs) {
   DLOG(INFO) << "addDevice: " << attrs;
   auto device = std::make_shared<device::PileDevice>(attrs);
   const auto &key = device->Id();

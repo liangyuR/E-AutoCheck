@@ -12,10 +12,30 @@ namespace qml_model {
 
 PileModel::PileModel(QObject *parent) : QAbstractListModel(parent) {}
 
+// 计算所有 CCU 的总数
 int PileModel::rowCount(const QModelIndex &parent) const {
   if (parent.isValid())
     return 0;
-  return static_cast<int>(items_.size());
+
+  int total = 0;
+  for (const auto &pile : items_) {
+    total += static_cast<int>(pile.ccu_attributes.size());
+  }
+  return total;
+}
+
+// 根据 row 找到对应的 (PileAttributes, CCUAttributes)
+std::pair<const device::PileAttributes *, const device::CCUAttributes *>
+PileModel::itemAt(int row) const {
+  int offset = 0;
+  for (const auto &pile : items_) {
+    const int ccu_count = static_cast<int>(pile.ccu_attributes.size());
+    if (row < offset + ccu_count) {
+      return {&pile, &pile.ccu_attributes[row - offset]};
+    }
+    offset += ccu_count;
+  }
+  return {nullptr, nullptr};
 }
 
 QVariant PileModel::data(const QModelIndex &index, int role) const {
@@ -23,85 +43,86 @@ QVariant PileModel::data(const QModelIndex &index, int role) const {
     return QVariant();
 
   const int row = index.row();
-  if (row < 0 || row >= static_cast<int>(items_.size()))
+  auto [pile, ccu] = itemAt(row);
+  if (pile == nullptr || ccu == nullptr) {
     return QVariant();
+  }
 
-  const auto &item = items_[row];
   switch (role) {
   case CcuIndexRole:
-    return item.index;
+    return ccu->index;
   case DeviceIdRole:
-    return QString::fromStdString(item.device_id);
+    return QString::fromStdString(pile->equip_no);
   case DeviceNameRole:
-    return QString::fromStdString(item.device_name);
+    return QString::fromStdString(pile->name);
   case DeviceTypeRole:
-    return QString::fromStdString(item.device_type);
+    return QString::fromStdString(device::DeviceTypeToString(pile->type));
   case LastCheckTimeRole:
-    return QString::fromStdString(item.last_check_time);
+    return QString::fromStdString(pile->last_check_time);
   case Ac1StuckRole:
-    return item.ac_contactor_1.contactor1_stuck;
+    return ccu->ac_contactor_1.contactor1_stuck;
   case Ac1RefuseRole:
-    return item.ac_contactor_1.contactor1_refuse;
+    return ccu->ac_contactor_1.contactor1_refuse;
   case Ac2StuckRole:
-    return item.ac_contactor_2.contactor1_stuck;
+    return ccu->ac_contactor_2.contactor1_stuck;
   case Ac2RefuseRole:
-    return item.ac_contactor_2.contactor1_refuse;
+    return ccu->ac_contactor_2.contactor1_refuse;
   case ParPosStuckRole:
-    return item.parallel_contactor.positive_stuck;
+    return ccu->parallel_contactor.positive_stuck;
   case ParPosRefuseRole:
-    return item.parallel_contactor.positive_refuse;
+    return ccu->parallel_contactor.positive_refuse;
   case ParNegStuckRole:
-    return item.parallel_contactor.negative_stuck;
+    return ccu->parallel_contactor.negative_stuck;
   case ParNegRefuseRole:
-    return item.parallel_contactor.negative_refuse;
+    return ccu->parallel_contactor.negative_refuse;
   case Fan1StoppedRole:
-    return item.fan_1.stopped;
+    return ccu->fan_1.stopped;
   case Fan1RotatingRole:
-    return item.fan_1.rotating;
+    return ccu->fan_1.rotating;
   case Fan2StoppedRole:
-    return item.fan_2.stopped;
+    return ccu->fan_2.stopped;
   case Fan2RotatingRole:
-    return item.fan_2.rotating;
+    return ccu->fan_2.rotating;
   case Fan3StoppedRole:
-    return item.fan_3.stopped;
+    return ccu->fan_3.stopped;
   case Fan3RotatingRole:
-    return item.fan_3.rotating;
+    return ccu->fan_3.rotating;
   case Fan4StoppedRole:
-    return item.fan_4.stopped;
+    return ccu->fan_4.stopped;
   case Fan4RotatingRole:
-    return item.fan_4.rotating;
+    return ccu->fan_4.rotating;
   case GunAPosStuckRole:
-    return item.gun_a.positive_contactor_stuck;
+    return ccu->gun_a.positive_contactor_stuck;
   case GunAPosRefuseRole:
-    return item.gun_a.positive_contactor_refuse;
+    return ccu->gun_a.positive_contactor_refuse;
   case GunANegStuckRole:
-    return item.gun_a.negative_contactor_stuck;
+    return ccu->gun_a.negative_contactor_stuck;
   case GunANegRefuseRole:
-    return item.gun_a.negative_contactor_refuse;
+    return ccu->gun_a.negative_contactor_refuse;
   case GunAUnlockedRole:
-    return item.gun_a.unlocked;
+    return ccu->gun_a.unlocked;
   case GunALockedRole:
-    return item.gun_a.locked;
+    return ccu->gun_a.locked;
   case GunAAux12Role:
-    return item.gun_a.aux_power_12v;
+    return ccu->gun_a.aux_power_12v;
   case GunAAux24Role:
-    return item.gun_a.aux_power_24v;
+    return ccu->gun_a.aux_power_24v;
   case GunBPosStuckRole:
-    return item.gun_b.positive_contactor_stuck;
+    return ccu->gun_b.positive_contactor_stuck;
   case GunBPosRefuseRole:
-    return item.gun_b.positive_contactor_refuse;
+    return ccu->gun_b.positive_contactor_refuse;
   case GunBNegStuckRole:
-    return item.gun_b.negative_contactor_stuck;
+    return ccu->gun_b.negative_contactor_stuck;
   case GunBNegRefuseRole:
-    return item.gun_b.negative_contactor_refuse;
+    return ccu->gun_b.negative_contactor_refuse;
   case GunBUnlockedRole:
-    return item.gun_b.unlocked;
+    return ccu->gun_b.unlocked;
   case GunBLockedRole:
-    return item.gun_b.locked;
+    return ccu->gun_b.locked;
   case GunBAux12Role:
-    return item.gun_b.aux_power_12v;
+    return ccu->gun_b.aux_power_12v;
   case GunBAux24Role:
-    return item.gun_b.aux_power_24v;
+    return ccu->gun_b.aux_power_24v;
   default:
     return QVariant();
   }
@@ -150,30 +171,30 @@ QHash<int, QByteArray> PileModel::roleNames() const {
 }
 
 void PileModel::loadDemo() {
-  std::vector<device::CCUAttributes> demo;
+  device::PileAttributes demo_pile;
+  demo_pile.equip_no = "DEMO-0001";
+  demo_pile.name = "演示设备";
+  demo_pile.type = device::DeviceTypes::kPILE;
+  demo_pile.last_check_time = "2025-01-01 00:00:00";
 
   device::CCUAttributes first;
   first.index = 1;
-  first.device_id = "DEMO-0001";
-  first.device_type = "PILE";
-  first.last_check_time = "";
   first.ac_contactor_2.contactor1_stuck = true;
   first.parallel_contactor.negative_refuse = true;
   first.fan_3.stopped = true;
   first.gun_b.positive_contactor_refuse = true;
-  demo.push_back(first);
+  demo_pile.ccu_attributes.push_back(first);
 
   device::CCUAttributes second;
   second.index = 2;
-  second.device_id = "DEMO-0001";
-  second.device_type = "PILE";
-  second.last_check_time = "";
   second.ac_contactor_1.contactor1_stuck = true;
   second.ac_contactor_1.contactor1_refuse = true;
   second.gun_b.unlocked = true;
-  demo.push_back(second);
+  demo_pile.ccu_attributes.push_back(second);
 
-  resetWith(std::move(demo));
+  std::vector<device::PileAttributes> items;
+  items.push_back(std::move(demo_pile));
+  resetWith(std::move(items));
 }
 
 void PileModel::loadFromHistory(const QString &recordId) {
@@ -184,7 +205,7 @@ void PileModel::loadFromDevice(const QString &deviceId) {
   loadAsyncByDeviceId(deviceId);
 }
 
-void PileModel::resetWith(std::vector<device::CCUAttributes> &&items) {
+void PileModel::resetWith(std::vector<device::PileAttributes> &&items) {
   beginResetModel();
   items_ = std::move(items);
   endResetModel();
@@ -213,12 +234,10 @@ void PileModel::loadAsyncByRecordId(const QString &recordId) {
   setLoading(true);
 
   auto *watcher =
-      new QFutureWatcher<absl::StatusOr<std::vector<device::CCUAttributes>>>(
-          this);
+      new QFutureWatcher<absl::StatusOr<device::PileAttributes>>(this);
 
   connect(watcher,
-          &QFutureWatcher<
-              absl::StatusOr<std::vector<device::CCUAttributes>>>::finished,
+          &QFutureWatcher<absl::StatusOr<device::PileAttributes>>::finished,
           this, [this, watcher]() {
             auto result = watcher->future().result();
             if (!result.ok()) {
@@ -228,7 +247,8 @@ void PileModel::loadAsyncByRecordId(const QString &recordId) {
               return;
             }
 
-            auto items = std::move(result).value();
+            std::vector<device::PileAttributes> items;
+            items.push_back(std::move(result).value());
             resetWith(std::move(items));
             setLoading(false);
             watcher->deleteLater();
@@ -247,12 +267,10 @@ void PileModel::loadAsyncByDeviceId(const QString &deviceId) {
   setLoading(true);
 
   auto *watcher =
-      new QFutureWatcher<absl::StatusOr<std::vector<device::CCUAttributes>>>(
-          this);
+      new QFutureWatcher<absl::StatusOr<device::PileAttributes>>(this);
 
   connect(watcher,
-          &QFutureWatcher<
-              absl::StatusOr<std::vector<device::CCUAttributes>>>::finished,
+          &QFutureWatcher<absl::StatusOr<device::PileAttributes>>::finished,
           this, [this, watcher]() {
             auto result = watcher->future().result();
             if (!result.ok()) {
@@ -262,7 +280,8 @@ void PileModel::loadAsyncByDeviceId(const QString &deviceId) {
               return;
             }
 
-            auto items = std::move(result).value();
+            std::vector<device::PileAttributes> items;
+            items.push_back(std::move(result).value());
             resetWith(std::move(items));
             setLoading(false);
             watcher->deleteLater();

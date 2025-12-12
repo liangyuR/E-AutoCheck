@@ -1,5 +1,6 @@
 #pragma once
 
+#include "device/pile_object.h"
 #include <QHash>
 #include <QObject>
 #include <QString>

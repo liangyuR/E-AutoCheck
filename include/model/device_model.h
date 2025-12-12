@@ -20,7 +20,6 @@ class DeviceModel : public QAbstractListModel {
 public:
   enum DeviceRoles {
     NameRole = Qt::UserRole + 1,
-    NameEnRole,
     EquipNoRole,
     StationNoRole,
     TypeRole,
@@ -48,7 +47,7 @@ public:
 
   // ============ 设备增删查 ============
   // 从属性创建一台设备并接管其生命周期。
-  PileDevicePtr addDevice(const device::PileAttr &attrs);
+  PileDevicePtr addDevice(const device::DeviceAttr &attrs);
 
   // 按业务 ID（equip_no）获取设备，找不到返回 nullptr
   PileDevicePtr getDeviceByEquipNo(const std::string &equip_no) const;

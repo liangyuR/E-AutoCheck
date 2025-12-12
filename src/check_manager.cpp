@@ -208,9 +208,10 @@ CheckManager::getResultFromRedis(const std::string &device_id) {
     return absl::NotFoundError("Device not found: " + device_id);
   }
 
-  const std::string type = device->Attributes().type;
-  if (type != device::kDeviceTypePILE) {
-    return absl::UnimplementedError("Unsupported device type: " + type);
+  const device::DeviceTypes type = device->Attributes().type;
+  if (type != device::DeviceTypes::kPILE) {
+    return absl::UnimplementedError("Unsupported device type: " +
+                                    device::DeviceTypeToString(type));
   }
   auto keys_or = getRedisKey(device_id);
   if (!keys_or.ok()) {
@@ -266,7 +267,8 @@ absl::Status CheckManager::saveResultToMysql(const std::string &device_id) {
     return absl::NotFoundError("Device not found: " + device_id);
   }
 
-  auto device_type = device->Attributes().type;
+  const std::string device_type =
+      device::DeviceTypeToString(device->Attributes().type);
 
   nlohmann::json details_json; // NOLINT
   details_json["deviceId"] = device_id;
@@ -402,7 +404,8 @@ CheckManager::getRedisKey(const std::string &device_id) {
     LOG(WARNING) << "Device not found: " << device_id;
     return absl::NotFoundError("Device not found: " + device_id);
   }
-  const std::string &type = device->Attributes().type;
+  const std::string type =
+      device::DeviceTypeToString(device->Attributes().type);
   std::string modules_key = "selfcheck:" + type + "#" + device_id + ":CCU#*";
 
   auto *redis = client::RedisClient::GetInstance();

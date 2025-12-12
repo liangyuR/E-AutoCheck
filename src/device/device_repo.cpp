@@ -6,46 +6,38 @@
 
 namespace device {
 
-PileAttr DeviceRepo::PileDeviceFromDbRow(const db::DbRow &row) {
-  PileAttr attrs;
+DeviceAttr DeviceRepo::PileDeviceFromDbRow(const db::DbRow &row) {
+  DeviceAttr attrs;
   attrs.db_id = row.getInt("ID");
   attrs.station_no = row.getString("StationNo");
   attrs.equip_no = row.getString("EquipNo");
   attrs.name = row.getString("EquipName");
-  attrs.name_en = row.getString("EquipNameEn");
-  attrs.type = row.getString("Type");
   attrs.ip_addr = row.getString("IPAddr");
-  attrs.gun_count = row.getInt("GunCount");
   attrs.equip_order = row.getInt("EquipOrder");
-  attrs.encrypt = row.getInt("Encrypt");
-  attrs.secret_key = row.getString("SecretKey");
-  attrs.secret_iv = row.getString("SecretIV");
-  attrs.data1 = row.getInt("Data1");
-  attrs.data3 = row.getInt("Data3");
-  attrs.data2_json = row.getNullableString("Data2").value_or("");
+  const auto type_str = row.getString("Type");
+  attrs.type = device::DeviceTypeFromString(type_str);
   attrs.data4_json = row.getNullableString("Data4").value_or("");
   return attrs;
 }
 
-absl::StatusOr<std::vector<PileAttr>> DeviceRepo::GetAllPipeDevices() {
+absl::StatusOr<std::vector<DeviceAttr>> DeviceRepo::GetAllDevices() {
   auto *client = db::MySqlClient::GetInstance();
   if (client == nullptr) {
     return absl::InternalError("MySQL client not initialized");
   }
 
   auto rows_result = client->executeQuery(
-      "SELECT ID, StationNo, EquipNo, EquipName, EquipNameEn, Type, "
-      "IPAddr, GunCount, EquipOrder, Encrypt, SecretKey, SecretIV, "
-      "Data1, Data2, Data3, Data4 "
+      "SELECT ID, StationNo, EquipNo, EquipName, Type, "
+      "IPAddr, EquipOrder, Data4 "
       "FROM equipment_info "
-      "WHERE Type = 'PILE'");
+      "WHERE Type = 'PILE'"); // TODO(@liangyu) 暂时只支持 PILE
 
   if (!rows_result.ok()) {
     return rows_result.status();
   }
 
   const auto &rows = rows_result.value();
-  std::vector<PileAttr> attrs;
+  std::vector<DeviceAttr> attrs;
   attrs.reserve(rows.size());
   for (const auto &row : rows) {
     attrs.push_back(DeviceRepo::PileDeviceFromDbRow(row));
@@ -96,7 +88,7 @@ DeviceRepo::GetHistoryItems(const QString &deviceId, int limit) {
   return items;
 }
 
-absl::StatusOr<std::vector<device::CCUAttributes>>
+absl::StatusOr<device::PileAttributes>
 DeviceRepo::GetPileItems(const QString &recordId) {
   auto *client = db::MySqlClient::GetInstance();
   if (client == nullptr) {
@@ -140,14 +132,18 @@ DeviceRepo::GetPileItems(const QString &recordId) {
     return it->get<std::string>();
   };
 
-  const std::string device_id = get_string(detail_json, "deviceId");
-  const std::string device_name = get_string(detail_json, "deviceName");
-  const std::string device_type = get_string(detail_json, "deviceType");
-  const auto create_at = rows.front().getString("CreatedAt");
+  // 构建 PileAttributes 结果
+  device::PileAttributes result;
+  result.equip_no = get_string(detail_json, "deviceId");
+  result.name = get_string(detail_json, "deviceName");
+  result.last_check_time = rows.front().getString("CreatedAt");
+
+  // 解析设备类型
+  const std::string device_type_str = get_string(detail_json, "deviceType");
+  result.type = device::DeviceTypeFromString(device_type_str);
 
   const auto &modules = detail_json["ccuModules"];
-  std::vector<device::CCUAttributes> attributes;
-  attributes.reserve(modules.size());
+  result.ccu_attributes.reserve(modules.size());
 
   auto get_nested_bool = [](const nlohmann::json &obj,
                             const std::string &key) -> bool {
@@ -168,10 +164,6 @@ DeviceRepo::GetPileItems(const QString &recordId) {
 
     device::CCUAttributes attr;
     attr.index = module.value("index", 0);
-    attr.device_id = device_id;
-    attr.device_name = device_name;
-    attr.device_type = device_type;
-    attr.last_check_time = create_at;
 
     const auto &ac1 = module.value("acContactor1", nlohmann::json::object());
     attr.ac_contactor_1.contactor1_stuck = get_nested_bool(ac1, "stuck");
@@ -236,13 +228,13 @@ DeviceRepo::GetPileItems(const QString &recordId) {
     attr.gun_b.aux_power_12v = get_nested_bool(gun_b, "auxPower12v");
     attr.gun_b.aux_power_24v = get_nested_bool(gun_b, "auxPower24v");
 
-    attributes.emplace_back(std::move(attr));
+    result.ccu_attributes.push_back(attr);
   }
 
-  return attributes;
+  return result;
 }
 
-absl::StatusOr<std::vector<device::CCUAttributes>>
+absl::StatusOr<device::PileAttributes>
 DeviceRepo::GetLatestPileItems(const QString &deviceId) {
   auto *client = db::MySqlClient::GetInstance();
   if (client == nullptr) {
@@ -261,8 +253,8 @@ DeviceRepo::GetLatestPileItems(const QString &deviceId) {
 
   const auto &rows = rows_result.value();
   if (rows.empty()) {
-    // 设备没有检查记录，返回空列表
-    return std::vector<device::CCUAttributes>{};
+    // 设备没有检查记录，返回空的 PileAttributes
+    return device::PileAttributes{};
   }
 
   const auto recordId = QString::fromStdString(rows.front().getString("ID"));
